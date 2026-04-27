@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hyntrix AI — Your AI Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+/* ═══════════════════════════════════
+   RESET + ROOT VARIABLES
+═══════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #03030A;
+  --bg2: #070712;
+  --glass: rgba(255,255,255,0.04);
+  --glass-border: rgba(255,255,255,0.08);
+  --blue: #1E90FF;
+  --blue-dim: rgba(30,144,255,0.15);
+  --blue-glow: rgba(30,144,255,0.35);
+  --cyan: #00D4FF;
+  --text: #F0F4FF;
+  --muted: #6B7A9A;
+  --mid: #9BA8C0;
+  --ff-head: 'Syne', sans-serif;
+  --ff-body: 'DM Sans', sans-serif;
+  --r: 14px;
+  --r-lg: 20px;
+  --trans: cubic-bezier(0.4,0,0.2,1);
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--ff-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* ═══════════════════════════════════
+   BACKGROUND EFFECTS
+═══════════════════════════════════ */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(30,144,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,144,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.bg-radial {
+  position: fixed; top: -20%; left: 50%; transform: translateX(-50%);
+  width: 900px; height: 600px;
+  background: radial-gradient(ellipse, rgba(30,144,255,0.08) 0%, transparent 70%);
+  z-index: 0; pointer-events: none;
+}
+.bg-orb {
+  position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0;
+}
+.orb1 { width:400px;height:400px;top:-100px;right:-100px;background:rgba(30,144,255,0.06); }
+.orb2 { width:300px;height:300px;bottom:20%;left:-80px;background:rgba(0,212,255,0.05); }
+
+/* ═══════════════════════════════════
+   PAGE SYSTEM
+═══════════════════════════════════ */
+.page { display:none; min-height:100vh; position:relative; z-index:1; }
+.page.active { display:block; animation: fadeUp 0.5s var(--trans) forwards; }
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ═══════════════════════════════════
+   NAVBAR
+═══════════════════════════════════ */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 0 5%;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 68px;
+  background: rgba(3,3,10,0.7);
+  backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nav-logo {
+  font-family: var(--ff-head);
+  font-size: 20px; font-weight: 800;
+  letter-spacing: -0.5px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+}
+.logo-mark {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: white;
+  box-shadow: 0 0 20px rgba(30,144,255,0.4);
+}
+.nav-logo span { color: var(--blue); }
+.nav-links {
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-link {
+  background: none; border: none; color: var(--muted);
+  font-family: var(--ff-body); font-size: 14px;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer;
+  transition: all 0.2s var(--trans);
+}
+.nav-link:hover { color: var(--text); background: var(--glass); }
+.nav-cta {
+  background: var(--blue); color: white;
+  border: none; border-radius: 10px;
+  padding: 9px 20px; font-size: 14px; font-weight: 500;
+  cursor: pointer; font-family: var(--ff-body);
+  transition: all 0.2s var(--trans);
+  box-shadow: 0 0 20px rgba(30,144,255,0.3);
+}
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 0 30px rgba(30,144,255,0.5); background: #2a9fff; }
+
+/* ═══════════════════════════════════
+   HERO SECTION
+═══════════════════════════════════ */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 120px 5% 80px;
+}
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(30,144,255,0.1);
+  border: 1px solid rgba(30,144,255,0.25);
+  border-radius: 100px; padding: 6px 16px;
+  font-size: 13px; color: #5BB8FF; font-weight: 500;
+  margin-bottom: 32px;
+  animation: fadeUp 0.6s var(--trans) 0.1s both;
+}
+.hero-badge-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--blue);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.7); }
+}
+.hero-title {
+  font-family: var(--ff-head);
+  font-size: clamp(42px, 7vw, 86px);
+  font-weight: 800; line-height: 1.05;
+  letter-spacing: -2px;
+  margin-bottom: 24px;
+  animation: fadeUp 0.6s var(--trans) 0.2s both;
+}
+.hero-title .grad {
+  background: linear-gradient(135deg, var(--blue) 0%, var(--cyan) 60%, #A78BFA 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px);
+  color: var(--mid); max-width: 600px;
+  margin: 0 auto 48px;
+  line-height: 1.7;
+  animation: fadeUp 0.6s var(--trans) 0.3s both;
+}
+.hero-actions {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  justify-content: center;
+  animation: fadeUp 0.6s var(--trans) 0.4s both;
+  margin-bottom: 80px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue), #0070D4);
+  color: white; border: none;
+  border-radius: 12px; padding: 14px 32px;
+  font-size: 16px; font-weight: 600;
+  font-family: var(--ff-body); cursor: pointer;
+  transition: all 0.2s var(--trans);
+  box-shadow: 0 0 40px rgba(30,144,255,0.35);
+  display: flex; align-items: center; gap: 8px;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 60px rgba(30,144,255,0.5); }
+.btn-ghost {
+  background: transparent;
+  color: var(--mid); border: 1px solid var(--glass-border);
+  border-radius: 12px; padding: 14px 32px;
+  font-size: 16px; font-weight: 500;
+  font-family: var(--ff-body); cursor: pointer;
+  transition: all 0.2s var(--trans);
+  display: flex; align-items: center; gap: 8px;
+  backdrop-filter: blur(10px);
+}
+.btn-ghost:hover { border-color: rgba(30,144,255,0.4); color: var(--text); background: var(--blue-dim); }
+
+/* ═══════════════════════════════════
+   COMMAND DEMO
+═══════════════════════════════════ */
+.command-demo {
+  width: 100%; max-width: 720px;
+  background: rgba(7,7,18,0.8);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(30,144,255,0.1);
+  animation: fadeUp 0.6s var(--trans) 0.5s both;
+  backdrop-filter: blur(20px);
+}
+.demo-topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+}
+.demo-dot { width:10px;height:10px;border-radius:50%; }
+.demo-dot:nth-child(1){background:#FF5F57;}
+.demo-dot:nth-child(2){background:#FFBD2E;}
+.demo-dot:nth-child(3){background:#28C840;}
+.demo-bar-title {
+  flex: 1; text-align: center;
+  font-size: 12px; color: var(--muted);
+}
+.demo-body { padding: 20px; }
+.cmd-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin-bottom: 16px;
+  opacity: 0; transform: translateX(-10px);
+  transition: all 0.4s var(--trans);
+}
+.cmd-row.visible { opacity:1; transform:translateX(0); }
+.cmd-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  flex-shrink: 0; margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+}
+.cmd-avatar.user { background: rgba(30,144,255,0.2); color: var(--blue); }
+.cmd-avatar.ai {
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  color: white;
+  box-shadow: 0 0 12px rgba(30,144,255,0.4);
+}
+.cmd-bubble {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px; padding: 10px 14px;
+  font-size: 13.5px; line-height: 1.6;
+  max-width: calc(100% - 44px);
+}
+.cmd-bubble.user { background: rgba(30,144,255,0.12); border-color: rgba(30,144,255,0.2); }
+.cmd-bubble .tag {
+  display: inline-block; font-size: 11px;
+  background: rgba(30,144,255,0.15); color: #5BB8FF;
+  border: 1px solid rgba(30,144,255,0.2);
+  border-radius: 6px; padding: 1px 8px; margin-right: 6px;
+}
+.demo-input {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 10px 14px;
+  margin-top: 8px;
+}
+.demo-input span { flex:1; font-size:13px; color:var(--muted); }
+.demo-send {
+  width:28px;height:28px;border-radius:8px;
+  background:var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;
+  box-shadow:0 0 12px rgba(30,144,255,0.4);
+}
+
+/* ═══════════════════════════════════
+   STORY SECTION
+═══════════════════════════════════ */
+.story-section {
+  padding: 100px 5%;
+  max-width: 1100px; margin: 0 auto;
+}
+.section-label {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--blue);
+  margin-bottom: 16px;
+}
+.section-title {
+  font-family: var(--ff-head);
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 700; line-height: 1.1;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+}
+.section-sub {
+  color: var(--mid); font-size: 17px;
+  max-width: 600px; line-height: 1.7;
+  margin-bottom: 60px;
+}
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+.story-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  transition: all 0.3s var(--trans);
+  position: relative; overflow: hidden;
+}
+.story-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--blue-glow), transparent);
+  opacity: 0; transition: opacity 0.3s;
+}
+.story-card:hover { border-color: rgba(30,144,255,0.25); transform: translateY(-4px); }
+.story-card:hover::before { opacity: 1; }
+.story-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--blue-dim);
+  border: 1px solid rgba(30,144,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 18px;
+}
+.story-card h3 {
+  font-family: var(--ff-head);
+  font-size: 18px; font-weight: 600;
+  margin-bottom: 10px;
+}
+.story-card p { color: var(--mid); font-size: 14px; line-height: 1.7; }
+.story-example {
+  margin-top: 16px; padding: 12px 14px;
+  background: rgba(30,144,255,0.06);
+  border: 1px solid rgba(30,144,255,0.12);
+  border-radius: 10px; font-size: 13px;
+}
+.story-example .cmd { color: var(--blue); font-weight: 500; }
+.story-example .result { color: var(--mid); margin-top: 4px; font-size: 12px; }
+
+/* ═══════════════════════════════════
+   STATS BAR
+═══════════════════════════════════ */
+.stats-bar {
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(7,7,18,0.6);
+  backdrop-filter: blur(20px);
+  padding: 40px 5%;
+}
+.stats-inner {
+  max-width: 900px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 20px; text-align: center;
+}
+.stat-val {
+  font-family: var(--ff-head);
+  font-size: 36px; font-weight: 800;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.stat-label { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+/* ═══════════════════════════════════
+   WAITLIST SECTION
+═══════════════════════════════════ */
+.waitlist-section {
+  padding: 100px 5%;
+  display: flex; flex-direction: column;
+  align-items: center; text-align: center;
+}
+.waitlist-card {
+  width: 100%; max-width: 560px;
+  background: rgba(7,7,18,0.8);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 48px 40px;
+  backdrop-filter: blur(30px);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(30,144,255,0.08);
+}
+.wl-icon {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--blue), var(--cyan));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin: 0 auto 24px;
+  box-shadow: 0 0 40px rgba(30,144,255,0.4);
+}
+.wl-title {
+  font-family: var(--ff-head);
+  font-size: 30px; font-weight: 700;
+  margin-bottom: 10px; letter-spacing: -0.5px;
+}
+.wl-sub { color: var(--mid); font-size: 15px; margin-bottom: 32px; line-height: 1.6; }
+.count-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(30,144,255,0.1); border: 1px solid rgba(30,144,255,0.2);
+  border-radius: 100px; padding: 5px 14px;
+  font-size: 13px; color: #5BB8FF;
+  margin-bottom: 28px;
+}
+
+/* ═══════════════════════════════════
+   FORMS
+═══════════════════════════════════ */
+.form-group { margin-bottom: 16px; text-align: left; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--mid); margin-bottom: 7px;
+}
+.form-input {
+  width: 100%; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 11px; padding: 13px 16px;
+  font-size: 15px; color: var(--text);
+  font-family: var(--ff-body);
+  transition: all 0.2s var(--trans);
+  outline: none;
+}
+.form-input:focus {
+  border-color: rgba(30,144,255,0.5);
+  box-shadow: 0 0 0 3px rgba(30,144,255,0.1), 0 0 20px rgba(30,144,255,0.05);
+  background: rgba(30,144,255,0.04);
+}
+.form-input::placeholder { color: var(--muted); }
+.btn-full {
+  width: 100%;
+  background: linear-gradient(135deg, var(--blue), #0070D4);
+  color: white; border: none;
+  border-radius: 11px; padding: 14px;
+  font-size: 16px; font-weight: 600;
+  font-family: var(--ff-body); cursor: pointer;
+  transition: all 0.2s var(--trans);
+  box-shadow: 0 0 30px rgba(30,144,255,0.3);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 8px;
+}
+.btn-full:hover { transform: translateY(-1px); box-shadow: 0 0 50px rgba(30,144,255,0.45); }
+.btn-full:disabled {
+  opacity: 0.6; cursor: not-allowed; transform: none;
+}
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0; color: var(--muted); font-size: 13px;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+.form-link {
+  text-align: center; font-size: 14px; color: var(--muted);
+  margin-top: 20px;
+}
+.form-link a {
+  color: var(--blue); text-decoration: none; font-weight: 500;
+  cursor: pointer;
+}
+.form-link a:hover { text-decoration: underline; }
+.form-error {
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 9px; padding: 10px 14px;
+  font-size: 13px; color: #FCA5A5; margin-bottom: 14px;
+  display: none;
+}
+.form-success {
+  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 9px; padding: 10px 14px;
+  font-size: 13px; color: #86EFAC; margin-bottom: 14px;
+  display: none;
+}
+.form-error.show, .form-success.show { display: block; animation: fadeUp 0.3s var(--trans); }
+
+/* ═══════════════════════════════════
+   AUTH PAGES
+═══════════════════════════════════ */
+.auth-page {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 100px 5% 60px;
+}
+.auth-card {
+  width: 100%; max-width: 460px;
+  background: rgba(7,7,18,0.85);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  padding: 44px 40px;
+  backdrop-filter: blur(30px);
+  box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+}
+.auth-logo {
+  display: flex; flex-direction: column;
+  align-items: center; margin-bottom: 32px;
+}
+.auth-logo .logo-mark { width:48px;height:48px;border-radius:14px;font-size:18px; }
+.auth-logo-text {
+  margin-top: 12px;
+  font-family: var(--ff-head);
+  font-size: 22px; font-weight: 800;
+}
+.auth-logo-text span { color: var(--blue); }
+.auth-title {
+  font-family: var(--ff-head);
+  font-size: 24px; font-weight: 700;
+  text-align: center; margin-bottom: 6px;
+}
+.auth-sub {
+  text-align: center; color: var(--muted);
+  font-size: 14px; margin-bottom: 28px;
+}
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════
+   SUCCESS PAGE
+═══════════════════════════════════ */
+.success-page {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 100px 5% 60px;
+}
+.success-icon {
+  width: 80px; height: 80px;
+  background: rgba(34,197,94,0.15);
+  border: 2px solid rgba(34,197,94,0.4);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; margin: 0 auto 28px;
+  animation: popIn 0.5s var(--trans);
+}
+@keyframes popIn {
+  from { transform:scale(0.5); opacity:0; }
+  to { transform:scale(1); opacity:1; }
+}
+.success-page h2 {
+  font-family: var(--ff-head);
+  font-size: 36px; font-weight: 700;
+  margin-bottom: 12px; letter-spacing: -0.5px;
+}
+.success-page p { color: var(--mid); font-size: 16px; max-width: 400px; line-height: 1.7; }
+.position-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--blue-dim); border: 1px solid rgba(30,144,255,0.25);
+  border-radius: 100px; padding: 8px 20px;
+  font-size: 15px; font-weight: 600; color: #5BB8FF;
+  margin: 20px 0;
+}
+
+/* ═══════════════════════════════════
+   FEATURES SECTION
+═══════════════════════════════════ */
+.features-section {
+  padding: 80px 5% 60px;
+  max-width: 1100px; margin: 0 auto;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.feat-pill {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex; align-items: center; gap: 12px;
+  transition: all 0.2s var(--trans);
+}
+.feat-pill:hover { border-color: rgba(30,144,255,0.3); background: var(--blue-dim); }
+.feat-pill-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--blue-dim); border: 1px solid rgba(30,144,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.feat-pill span { font-size: 13.5px; font-weight: 500; }
+
+/* ═══════════════════════════════════
+   FOOTER
+═══════════════════════════════════ */
+footer {
+  border-top: 1px solid var(--glass-border);
+  padding: 32px 5%;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+}
+.footer-logo {
+  font-family: var(--ff-head); font-weight: 700;
+  font-size: 15px; cursor: pointer;
+}
+.footer-logo span { color: var(--blue); }
+footer p { color: var(--muted); font-size: 13px; }
+
+/* ═══════════════════════════════════
+   TOAST
+═══════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 32px; right: 32px; z-index: 999;
+  background: rgba(7,7,18,0.95);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px; padding: 14px 20px;
+  font-size: 14px; backdrop-filter: blur(20px);
+  transform: translateY(20px); opacity: 0;
+  transition: all 0.3s var(--trans);
+  pointer-events: none;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { border-color: rgba(34,197,94,0.4); color: #86EFAC; }
+#toast.error { border-color: rgba(239,68,68,0.4); color: #FCA5A5; }
+
+/* ═══════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════ */
+@media (max-width: 640px) {
+  .nav-links .nav-link { display: none; }
+  .stats-inner { grid-template-columns: repeat(2, 1fr); }
+  .auth-card, .waitlist-card { padding: 32px 24px; }
+  .hero-title { letter-spacing: -1px; }
+  footer { flex-direction: column; text-align: center; }
+}
+
+/* ═══════════════════════════════════
+   LOADING STATE
+═══════════════════════════════════ */
+.loading-dots span {
+  display: inline-block;
+  animation: blink 1.4s ease-in-out infinite;
+}
+.loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%,80%,100% { opacity: 0.2; }
+  40% { opacity: 1; }
+}
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND -->
+<div class="bg-grid"></div>
+<div class="bg-radial"></div>
+<div class="bg-orb orb1"></div>
+<div class="bg-orb orb2"></div>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-logo" onclick="showPage('landing')">
+    <div class="logo-mark">HX</div>
+    HYNTRIX <span>AI</span>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link" onclick="scrollToSection('features')">Features</button>
+    <button class="nav-link" onclick="scrollToSection('waitlist-section')">Early Access</button>
+    <button class="nav-link" onclick="showPage('login')">Sign In</button>
+    <button class="nav-cta" onclick="showPage('signup')">Get Started →</button>
+  </div>
+</nav>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════ LANDING PAGE ═══════════════════════════ -->
+<div id="page-landing" class="page active">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <div class="hero-badge-dot"></div>
+      Now in Private Beta — Join 2,847 people on the waitlist
+    </div>
+
+    <h1 class="hero-title">
+      The AI That<br/>
+      <span class="grad">Does the Work.</span><br/>
+      Not Just Talks.
+    </h1>
+
+    <p class="hero-sub">
+      You give one command. Hyntrix AI writes, sends, automates, builds,
+      and executes — across every app you use. This is your AI command center.
+    </p>
+
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="scrollToSection('waitlist-section')">
+        ⚡ Join the Waitlist
+      </button>
+      <button class="btn-ghost" onclick="showPage('signup')">
+        → Start Building
+      </button>
+    </div>
+
+    <!-- COMMAND DEMO -->
+    <div class="command-demo">
+      <div class="demo-topbar">
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        <div class="demo-bar-title">Hyntrix AI — Command Center</div>
+      </div>
+      <div class="demo-body" id="demo-body">
+        <!-- Rows injected by JS -->
+        <div class="demo-input">
+          <span>Tell Hyntrix what to do<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></span>
+          <div class="demo-send">→</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stats-inner">
+      <div><div class="stat-val">50+</div><div class="stat-label">Apps Connected</div></div>
+      <div><div class="stat-val">10x</div><div class="stat-label">Faster Execution</div></div>
+      <div><div class="stat-val">∞</div><div class="stat-label">Workflows Possible</div></div>
+      <div><div class="stat-val">24/7</div><div class="stat-label">Always Running</div></div>
+    </div>
+  </div>
+
+  <!-- STORY SECTION -->
+  <section class="story-section" id="features">
+    <div class="section-label">What Hyntrix AI does</div>
+    <h2 class="section-title">One Command.<br/>Infinite Actions.</h2>
+    <p class="section-sub">
+      Stop copy-pasting between apps. Stop writing the same emails.
+      Stop forgetting to post. Hyntrix handles everything — you just tell it what you want.
+    </p>
+
+    <div class="story-grid">
+      <div class="story-card">
+        <div class="story-icon">✍️</div>
+        <h3>Content on Autopilot</h3>
+        <p>You think of an idea. Hyntrix writes the blog post, Instagram caption, YouTube script, and email newsletter — all in seconds, all in your voice.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Write a week of content about our new product launch"</div>
+          <div class="result">7 posts + 3 email drafts + 1 video script. Ready to publish.</div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-icon">⚡</div>
+        <h3>Automation That Thinks</h3>
+        <p>Connect your Gmail, Instagram, WhatsApp — and let Hyntrix handle replies, schedule posts, and run workflows while you sleep.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Reply to all unread customer WhatsApp messages"</div>
+          <div class="result">AI read context, drafted replies, awaiting your approval.</div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-icon">🌐</div>
+        <h3>Build Without Code</h3>
+        <p>You describe the website you want. Hyntrix generates it, deploys it, and hands you the link — no developer, no waiting.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Create a landing page for my coaching business"</div>
+          <div class="result">Website built, deployed at yourname.hyntrix.app — done.</div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-icon">🎙️</div>
+        <h3>Just Speak. It Executes.</h3>
+        <p>Say "Hey Hyntrix" and your AI assistant wakes up. Give a voice command — it takes action. No typing required.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Schedule a post on Instagram for tomorrow morning"</div>
+          <div class="result">Done. Scheduled for 9 AM. Caption generated. Hashtags added.</div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-icon">🎬</div>
+        <h3>Videos from Text</h3>
+        <p>Type a script or a topic — Hyntrix generates a full video with voiceover, visuals, music. Share directly to YouTube or Instagram.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Make a 30-second ad video for my product"</div>
+          <div class="result">Video generated, voiced, and ready to download in 90 seconds.</div>
+        </div>
+      </div>
+
+      <div class="story-card">
+        <div class="story-icon">🧠</div>
+        <h3>AI That Remembers You</h3>
+        <p>Hyntrix learns your brand, your tone, your preferences. Every response gets better. Every action gets more personal.</p>
+        <div class="story-example">
+          <div class="cmd">→ "Write an email the way I usually do"</div>
+          <div class="result">Matched your tone, used your common phrases. Sounds like you.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES PILLS -->
+  <section class="features-section">
+    <div class="features-grid">
+      <div class="feat-pill"><div class="feat-pill-icon">💬</div><span>Multi-Model AI Chat</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">📱</div><span>Instagram Automation</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">📧</div><span>Gmail Integration</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">💬</div><span>WhatsApp AI</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">📅</div><span>Calendar Control</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🎙️</div><span>Voice Commands</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🎬</div><span>Video Generation</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🖼️</div><span>Image Creation</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🔨</div><span>No-Code Builder</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🛒</div><span>Agent Marketplace</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">🧠</div><span>AI Memory</span></div>
+      <div class="feat-pill"><div class="feat-pill-icon">📊</div><span>Analytics Dashboard</span></div>
+    </div>
+  </section>
+
+  <!-- WAITLIST CTA SECTION -->
+  <section class="waitlist-section" id="waitlist-section">
+    <div style="margin-bottom:40px;text-align:center">
+      <div class="section-label">Early Access</div>
+      <h2 class="section-title">Be First.<br/>Get More.</h2>
+      <p class="section-sub" style="margin:0 auto">
+        Waitlist members get 3 months free Pro access, priority onboarding,
+        and the chance to shape the product.
+      </p>
+    </div>
+
+    <div class="waitlist-card">
+      <div class="wl-icon">⚡</div>
+      <div class="wl-title">Join the Waitlist</div>
+      <div class="wl-sub">Get early access when we launch. No spam. Ever.</div>
+      <div class="count-badge">
+        <div class="hero-badge-dot" style="background:#22C55E"></div>
+        2,847 people already waiting
+      </div>
+
+      <div id="wl-error" class="form-error"></div>
+      <div id="wl-success" class="form-success"></div>
+
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" type="text" id="wl-name" placeholder="Enter your name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="wl-email" placeholder="you@example.com" />
+      </div>
+
+      <button class="btn-full" id="wl-btn" onclick="submitWaitlist()">
+        <span id="wl-btn-text">⚡ Claim My Spot</span>
+        <div class="spinner" id="wl-spinner"></div>
+      </button>
+
+      <p style="color:var(--muted);font-size:12px;text-align:center;margin-top:16px">
+        🔒 No spam. Unsubscribe anytime. We respect your privacy.
+      </p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo" onclick="showPage('landing')">HYNTRIX <span>AI</span></div>
+    <p>© 2025 Hyntrix AI. All rights reserved.</p>
+    <div style="display:flex;gap:16px">
+      <span style="color:var(--muted);font-size:13px;cursor:pointer" onclick="showPage('login')">Sign In</span>
+      <span style="color:var(--muted);font-size:13px;cursor:pointer" onclick="showPage('signup')">Sign Up</span>
+    </div>
+  </footer>
+
+</div><!-- /landing page -->
+
+
+<!-- ═══════════════════════════ SIGNUP PAGE ═══════════════════════════ -->
+<div id="page-signup" class="page">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark" style="width:48px;height:48px;font-size:18px;border-radius:14px">HX</div>
+        <div class="auth-logo-text">HYNTRIX <span>AI</span></div>
+      </div>
+      <div class="auth-title">Create your account</div>
+      <div class="auth-sub">Join the future of AI-powered work</div>
+
+      <div id="su-error" class="form-error"></div>
+      <div id="su-success" class="form-success"></div>
+
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" type="text" id="su-name" placeholder="Enter your full name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="su-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="su-pass" placeholder="Min 8 characters" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm Password</label>
+        <input class="form-input" type="password" id="su-pass2" placeholder="Repeat password" />
+      </div>
+
+      <button class="btn-full" id="su-btn" onclick="handleSignup()">
+        <span id="su-btn-text">Create Account →</span>
+        <div class="spinner" id="su-spinner"></div>
+      </button>
+
+      <p class="form-link">
+        Already have an account? <a onclick="showPage('login')">Sign in</a>
+      </p>
+      <p class="form-link" style="margin-top:8px">
+        <a onclick="showPage('landing')">← Back to home</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════ LOGIN PAGE ═══════════════════════════ -->
+<div id="page-login" class="page">
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <div class="logo-mark" style="width:48px;height:48px;font-size:18px;border-radius:14px">HX</div>
+        <div class="auth-logo-text">HYNTRIX <span>AI</span></div>
+      </div>
+      <div class="auth-title">Welcome back</div>
+      <div class="auth-sub">Sign in to your command center</div>
+
+      <div id="li-error" class="form-error"></div>
+      <div id="li-success" class="form-success"></div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" type="email" id="li-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" type="password" id="li-pass" placeholder="Your password" />
+      </div>
+
+      <button class="btn-full" id="li-btn" onclick="handleLogin()">
+        <span id="li-btn-text">Sign In →</span>
+        <div class="spinner" id="li-spinner"></div>
+      </button>
+
+      <p class="form-link">
+        Don't have an account? <a onclick="showPage('signup')">Sign up free</a>
+      </p>
+      <p class="form-link" style="margin-top:8px">
+        <a onclick="showPage('landing')">← Back to home</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════ SUCCESS PAGE ═══════════════════════════ -->
+<div id="page-success" class="page">
+  <div class="success-page">
+    <div class="success-icon">✓</div>
+    <h2>You're on the list!</h2>
+    <div class="position-badge" id="success-position">🎉 You're #2,848 in line</div>
+    <p>
+      We'll email you the moment early access opens.
+      Expect big things — you're going to love what we've built.
+    </p>
+    <div style="margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+      <button class="btn-primary" onclick="showPage('signup')">⚡ Create Account Now</button>
+      <button class="btn-ghost" onclick="showPage('landing')">← Back to Home</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════ DASHBOARD PAGE ═══════════════════════════ -->
+<div id="page-dashboard" class="page">
+  <div style="padding:100px 5% 60px;max-width:900px;margin:0 auto">
+    <div style="margin-bottom:40px">
+      <div class="hero-badge" style="display:inline-flex">
+        <div class="hero-badge-dot" style="background:#22C55E"></div>
+        You're in — Welcome to Hyntrix AI
+      </div>
+      <h2 class="section-title" style="margin-top:16px">
+        Your Command Center<br/>is <span style="background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Ready</span>
+      </h2>
+      <p style="color:var(--muted);font-size:16px;margin-top:8px">
+        Logged in as: <span id="dash-email" style="color:var(--blue)"></span>
+      </p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:32px">
+      <div class="story-card">
+        <div class="story-icon">💬</div>
+        <h3>AI Chat</h3>
+        <p>Chat with DeepSeek, Claude, or Mistral. Switch models instantly.</p>
+        <button class="btn-ghost" style="margin-top:16px;padding:10px 20px;font-size:14px;width:100%;justify-content:center">Coming Soon</button>
+      </div>
+      <div class="story-card">
+        <div class="story-icon">⚡</div>
+        <h3>Automation</h3>
+        <p>Connect apps and build workflows that run 24/7 automatically.</p>
+        <button class="btn-ghost" style="margin-top:16px;padding:10px 20px;font-size:14px;width:100%;justify-content:center">Coming Soon</button>
+      </div>
+      <div class="story-card">
+        <div class="story-icon">🎬</div>
+        <h3>Video AI</h3>
+        <p>Generate videos from text. Publish to social. All with credits.</p>
+        <button class="btn-ghost" style="margin-top:16px;padding:10px 20px;font-size:14px;width:100%;justify-content:center">Coming Soon</button>
+      </div>
+    </div>
+
+    <div style="text-align:center">
+      <button class="btn-ghost" onclick="handleLogout()" style="padding:12px 28px">
+        Sign Out
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════ JAVASCRIPT ══════════════ -->
+<script>
+/* ─── SUPABASE CONFIGURATION ─────────────────────────────────────────
+   SETUP INSTRUCTIONS:
+   1. Go to supabase.com → Create new project
+   2. Run this SQL in your Supabase SQL Editor:
+
+      CREATE TABLE waitlist (
+        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        position INTEGER,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+      CREATE POLICY "Anyone can join waitlist"
+        ON waitlist FOR INSERT WITH CHECK (true);
+
+   3. Settings → API → copy Project URL and anon/public key
+   4. Replace SUPABASE_URL and SUPABASE_ANON_KEY below
+─────────────────────────────────────────────────────────────────── */
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+/* ─── SIMPLE SUPABASE CLIENT (no CDN needed) ─────────────────── */
+async function supabaseRequest(path, method='GET', body=null, token=null) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${token || SUPABASE_ANON_KEY}`
+  };
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${SUPABASE_URL}${path}`, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error_description || 'Request failed');
+  return data;
+}
+
+/* ─── LOCAL STATE ────────────────────────────────────────────── */
+let currentUser = null;
+try { currentUser = JSON.parse(localStorage.getItem('hyntrix_user') || 'null'); } catch(e) {}
+
+/* ─── PAGE NAVIGATION ─────────────────────────────────────────── */
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + name);
+  if (pg) { pg.classList.add('active'); window.scrollTo(0, 0); }
+  clearForms();
+}
+
+function scrollToSection(id) {
+  showPage('landing');
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function clearForms() {
+  document.querySelectorAll('.form-error, .form-success').forEach(el => el.classList.remove('show'));
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = '⚠ ' + msg; el.classList.add('show'); }
+}
+
+function showSuccess(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = '✓ ' + msg; el.classList.add('show'); }
+}
+
+function setLoading(btnId, spinnerId, loading) {
+  const btn = document.getElementById(btnId);
+  const spinner = document.getElementById(spinnerId);
+  const text = document.getElementById(btnId.replace('-btn', '-btn-text'));
+  if (btn) btn.disabled = loading;
+  if (spinner) spinner.style.display = loading ? 'block' : 'none';
+  if (text) text.style.opacity = loading ? '0.5' : '1';
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = (type === 'success' ? '✓ ' : '✗ ') + msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3500);
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/* ─── WAITLIST ──────────────────────────────────────────────────── */
+async function submitWaitlist() {
+  const name = document.getElementById('wl-name').value.trim();
+  const email = document.getElementById('wl-email').value.trim();
+
+  if (!name) { showError('wl-error', 'Please enter your name.'); return; }
+  if (!email || !validateEmail(email)) { showError('wl-error', 'Please enter a valid email.'); return; }
+
+  setLoading('wl-btn', 'wl-spinner', true);
+  clearForms();
+
+  // Simulate a short delay (replace with real Supabase call below)
+  await new Promise(r => setTimeout(r, 1200));
+
+  /* REAL SUPABASE CALL (uncomment when you add your keys):
+  try {
+    const position = Math.floor(Math.random() * 200) + 2848;
+    await supabaseRequest('/rest/v1/waitlist', 'POST', { name, email, position });
+    document.getElementById('success-position').textContent = '🎉 You\'re #' + position + ' in line';
+    showPage('success');
+  } catch(e) {
+    if (e.message.includes('duplicate')) {
+      showError('wl-error', 'This email is already on the waitlist.');
+    } else {
+      showError('wl-error', 'Something went wrong. Please try again.');
+    }
+  }
+  */
+
+  // DEMO: works without Supabase
+  const pos = Math.floor(Math.random() * 200) + 2848;
+  document.getElementById('success-position').textContent = '🎉 You\'re #' + pos + ' in line';
+  setLoading('wl-btn', 'wl-spinner', false);
+  showPage('success');
+}
+
+/* ─── SIGNUP ────────────────────────────────────────────────────── */
+async function handleSignup() {
+  const name = document.getElementById('su-name').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const pass = document.getElementById('su-pass').value;
+  const pass2 = document.getElementById('su-pass2').value;
+
+  if (!name) { showError('su-error', 'Please enter your name.'); return; }
+  if (!email || !validateEmail(email)) { showError('su-error', 'Please enter a valid email.'); return; }
+  if (!pass || pass.length < 8) { showError('su-error', 'Password must be at least 8 characters.'); return; }
+  if (pass !== pass2) { showError('su-error', 'Passwords do not match.'); return; }
+
+  setLoading('su-btn', 'su-spinner', true);
+  clearForms();
+  await new Promise(r => setTimeout(r, 1400));
+
+  /* REAL SUPABASE CALL (uncomment when you add your keys):
+  try {
+    const data = await supabaseRequest('/auth/v1/signup', 'POST', {
+      email, password: pass,
+      options: { data: { full_name: name } }
+    });
+    if (data.user) {
+      currentUser = { email, name, id: data.user.id };
+      localStorage.setItem('hyntrix_user', JSON.stringify(currentUser));
+      document.getElementById('dash-email').textContent = email;
+      setLoading('su-btn', 'su-spinner', false);
+      toast('Account created! Welcome to Hyntrix AI.');
+      showPage('dashboard');
+    }
+  } catch(e) {
+    setLoading('su-btn', 'su-spinner', false);
+    showError('su-error', e.message || 'Sign up failed. Please try again.');
+  }
+  */
+
+  // DEMO: works without Supabase
+  currentUser = { email, name };
+  localStorage.setItem('hyntrix_user', JSON.stringify(currentUser));
+  document.getElementById('dash-email').textContent = email;
+  setLoading('su-btn', 'su-spinner', false);
+  toast('Welcome to Hyntrix AI, ' + name + '! 🎉');
+  showPage('dashboard');
+}
+
+/* ─── LOGIN ─────────────────────────────────────────────────────── */
+async function handleLogin() {
+  const email = document.getElementById('li-email').value.trim();
+  const pass = document.getElementById('li-pass').value;
+
+  if (!email || !validateEmail(email)) { showError('li-error', 'Please enter a valid email.'); return; }
+  if (!pass) { showError('li-error', 'Please enter your password.'); return; }
+
+  setLoading('li-btn', 'li-spinner', true);
+  clearForms();
+  await new Promise(r => setTimeout(r, 1200));
+
+  /* REAL SUPABASE CALL (uncomment when you add your keys):
+  try {
+    const data = await supabaseRequest('/auth/v1/token?grant_type=password', 'POST', { email, password: pass });
+    if (data.access_token) {
+      currentUser = { email, token: data.access_token };
+      localStorage.setItem('hyntrix_user', JSON.stringify(currentUser));
+      document.getElementById('dash-email').textContent = email;
+      setLoading('li-btn', 'li-spinner', false);
+      toast('Welcome back! ✨');
+      showPage('dashboard');
+    }
+  } catch(e) {
+    setLoading('li-btn', 'li-spinner', false);
+    showError('li-error', 'Invalid email or password.');
+  }
+  */
+
+  // DEMO: works without Supabase
+  currentUser = { email };
+  localStorage.setItem('hyntrix_user', JSON.stringify(currentUser));
+  document.getElementById('dash-email').textContent = email;
+  setLoading('li-btn', 'li-spinner', false);
+  toast('Welcome back! ✨');
+  showPage('dashboard');
+}
+
+/* ─── LOGOUT ─────────────────────────────────────────────────────── */
+function handleLogout() {
+  currentUser = null;
+  localStorage.removeItem('hyntrix_user');
+  toast('Signed out successfully.');
+  showPage('landing');
+}
+
+/* ─── ENTER KEY SUPPORT ─────────────────────────────────────────── */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.page.active');
+    if (!active) return;
+    const id = active.id;
+    if (id === 'page-signup') handleSignup();
+    else if (id === 'page-login') handleLogin();
+  }
+});
+
+/* ─── AUTO-RESTORE SESSION ─────────────────────────────────────── */
+if (currentUser && window.location.hash !== '#landing') {
+  document.getElementById('dash-email').textContent = currentUser.email || '';
+}
+
+/* ─── DEMO COMMAND ANIMATION ────────────────────────────────────── */
+const demoCommands = [
+  { user: "Post about our new launch on Instagram today", ai: '<span class="tag">✓ Posted</span> Caption written, optimized hashtags added. Posted at 9:14 AM. Reach: ~2,400 accounts.' },
+  { user: "Reply to all unread emails from clients", ai: '<span class="tag">✓ Done</span> 7 emails processed. 7 replies drafted + sent. 2 flagged for your review.' },
+  { user: "Create a short video for our product", ai: '<span class="tag">✓ Generated</span> 30-second video ready. Voiceover added. Download or publish to YouTube.' },
+];
+let cmdIndex = 0;
+let cmdTimeout;
+
+function animateDemoRow(row) {
+  setTimeout(() => row.classList.add('visible'), 50);
+}
+
+function runDemoSequence() {
+  const body = document.getElementById('demo-body');
+  const cmd = demoCommands[cmdIndex % demoCommands.length];
+
+  const userRow = document.createElement('div');
+  userRow.className = 'cmd-row';
+  userRow.innerHTML = `<div class="cmd-avatar user">U</div><div class="cmd-bubble user">${cmd.user}</div>`;
+  body.insertBefore(userRow, body.lastElementChild);
+  animateDemoRow(userRow);
+
+  setTimeout(() => {
+    const aiRow = document.createElement('div');
+    aiRow.className = 'cmd-row';
+    aiRow.innerHTML = `<div class="cmd-avatar ai">HX</div><div class="cmd-bubble">${cmd.ai}</div>`;
+    body.insertBefore(aiRow, body.lastElementChild);
+    animateDemoRow(aiRow);
+
+    // Keep only 4 rows max + input
+    while (body.children.length > 5) body.removeChild(body.firstChild);
+  }, 900);
+
+  cmdIndex++;
+  cmdTimeout = setTimeout(runDemoSequence, 3800);
+}
+
+// Start demo after 1 second
+setTimeout(runDemoSequence, 1000);
+</script>
+
+<!-- ═══════════ SETUP GUIDE (HTML comment for reference) ═══════════
+
+SUPABASE SETUP GUIDE (5 minutes):
+
+1. CREATE PROJECT:
+   → Go to supabase.com → Sign in → New Project
+   → Name it "hyntrix-ai" → Set a strong DB password → Create
+
+2. RUN THIS SQL (in SQL Editor tab):
+   ────────────────────────────────────
+   CREATE TABLE waitlist (
+     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+     name TEXT NOT NULL,
+     email TEXT NOT NULL UNIQUE,
+     position INTEGER,
+     created_at TIMESTAMPTZ DEFAULT NOW()
+   );
+   ALTER TABLE waitlist ENABLE ROW LEVEL SECURITY;
+   CREATE POLICY "Allow waitlist insert" ON waitlist FOR INSERT WITH CHECK (true);
+   CREATE POLICY "Allow waitlist select" ON waitlist FOR SELECT USING (true);
+   ────────────────────────────────────
+
+3. GET API KEYS:
+   → Settings → API
+   → Copy "Project URL" → paste as SUPABASE_URL
+   → Copy "anon / public" key → paste as SUPABASE_ANON_KEY
+
+4. CONNECT (in this file, top of <script> section):
+   const SUPABASE_URL = 'https://xxxx.supabase.co';
+   const SUPABASE_ANON_KEY = 'eyJxxxx...';
+
+5. UNCOMMENT the real Supabase calls in each function
+   (marked with "REAL SUPABASE CALL (uncomment...)")
+
+6. DEPLOY TO VERCEL:
+   → Push code to GitHub
+   → vercel.com → Import repo → Deploy
+   → Add env vars in Vercel dashboard if using Next.js version
+
+That's it. Your full stack is live. ✓
+
+═══════════════════════════════════════════════════════════════════ -->
+
+</body>
+</html>

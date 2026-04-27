@@ -1047,8 +1047,8 @@ footer p { color: var(--muted); font-size: 13px; }
    3. Settings → API → copy Project URL and anon/public key
    4. Replace SUPABASE_URL and SUPABASE_ANON_KEY below
 ─────────────────────────────────────────────────────────────────── */
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://lxfnfzigwznfyblabsew.supabase.co;
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Zm5memlnd3puZnlibGFic2V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODc5NTAsImV4cCI6MjA5Mjg2Mzk1MH0.lKWjmXWzFyP6DreMfhEu2p3w3JhH9LoHL8-3MGcqufQ';
 
 /* ─── SIMPLE SUPABASE CLIENT (no CDN needed) ─────────────────── */
 async function supabaseRequest(path, method='GET', body=null, token=null) {
@@ -1131,24 +1131,30 @@ async function submitWaitlist() {
   clearForms();
 
   // Simulate a short delay (replace with real Supabase call below)
-  await new Promise(r => setTimeout(r, 1200));
+  
 
-  /* REAL SUPABASE CALL (uncomment when you add your keys):
+ //  REAL SUPABASE CALL 
   try {
-    const position = Math.floor(Math.random() * 200) + 2848;
-    await supabaseRequest('/rest/v1/waitlist', 'POST', { name, email, position });
-    document.getElementById('success-position').textContent = '🎉 You\'re #' + position + ' in line';
-    showPage('success');
-  } catch(e) {
-    if (e.message.includes('duplicate')) {
-      showError('wl-error', 'This email is already on the waitlist.');
-    } else {
-      showError('wl-error', 'Something went wrong. Please try again.');
-    }
-  }
-  */
+  const position = Math.floor(Math.random() * 200) + 2848;
 
-  // DEMO: works without Supabase
+  await supabaseRequest('/rest/v1/waitlist', 'POST', { name, email, position });
+
+  document.getElementById('success-position').textContent =
+    '🎉 You\'re #' + position + ' in line';
+
+  showPage('success');
+
+} catch(e) {
+  if (e.message.includes('duplicate')) {
+    showError('wl-error', 'This email is already on the waitlist.');
+  } else {
+    showError('wl-error', 'Something went wrong. Please try again.');
+  }
+}
+
+
+
+  
   const pos = Math.floor(Math.random() * 200) + 2848;
   document.getElementById('success-position').textContent = '🎉 You\'re #' + pos + ' in line';
   setLoading('wl-btn', 'wl-spinner', false);

@@ -1,13 +1,33 @@
 {
-  "name": "hyntrix-saas",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Static SaaS authentication site with Supabase integration.",
+  "name": "whatwg-encoding",
+  "description": "Decode strings according to the WHATWG Encoding Standard",
+  "keywords": [
+    "encoding",
+    "whatwg"
+  ],
+  "version": "2.0.0",
+  "author": "Domenic Denicola <d@domenic.me> (https://domenic.me/)",
+  "license": "MIT",
+  "repository": "jsdom/whatwg-encoding",
+  "main": "lib/whatwg-encoding.js",
+  "files": [
+    "lib/"
+  ],
   "scripts": {
-    "dev": "npx http-server . -p 3000",
-    "start": "npm run dev"
+    "test": "mocha",
+    "lint": "eslint .",
+    "prepare": "node scripts/update.js"
+  },
+  "dependencies": {
+    "iconv-lite": "0.6.3"
   },
   "devDependencies": {
-    "http-server": "^14.1.1"
+    "@domenic/eslint-config": "^1.3.0",
+    "eslint": "^7.32.0",
+    "minipass-fetch": "^1.4.1",
+    "mocha": "^9.1.1"
+  },
+  "engines": {
+    "node": ">=12"
   }
 }

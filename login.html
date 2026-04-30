@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Hyntrix AI</title>
+  <meta name="description" content="Sign in to your Hyntrix AI command center.">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="cur"></div>
+  <div id="cur-r"></div>
+
+  <!-- Background -->
+  <div class="bg-wrap" aria-hidden="true">
+    <canvas id="bg-canvas"></canvas>
+    <div class="bg-grid"></div>
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+    <div class="orb orb4"></div>
+  </div>
+
+  <div id="toast" role="alert"></div>
+
+  <!-- NAV -->
+  <nav>
+    <a href="/" class="nav-logo">
+      <div class="logo-svg-wrap">
+        <svg width="38" height="38" viewBox="0 0 38 38" fill="none"><defs><linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#60C0FF"/><stop offset="50%" stop-color="#1A8CFF"/><stop offset="100%" stop-color="#0056CC"/></linearGradient><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#00D4FF"/><stop offset="100%" stop-color="#1A8CFF"/></linearGradient></defs><rect x="3" y="5" width="5" height="28" rx="1.5" fill="url(#lg1)"/><rect x="3" y="16" width="13" height="5" rx="1.5" fill="url(#lg1)"/><rect x="11" y="5" width="5" height="28" rx="1.5" fill="url(#lg1)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="url(#lg2)" transform="rotate(38 21.5 19)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="url(#lg2)" transform="rotate(-38 21.5 19)"/><circle cx="24" cy="19" r="2.5" fill="white" opacity="0.85"/></svg>
+      </div>
+      <div class="logo-wordmark">
+        <span class="logo-name">HYNTRIX</span>
+        <span class="logo-tag">AI Command Center</span>
+      </div>
+    </a>
+    <div class="nav-desk">
+      <a href="/signup.html" class="nav-cta">Get Started →</a>
+    </div>
+    <button class="hbg" id="hbg" onclick="toggleMenu()">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <div class="mob-menu" id="mob-menu">
+    <a href="/signup.html" class="mob-cta">Get Started →</a>
+  </div>
+
+  <!-- AUTH WRAP -->
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-top">
+        <svg width="46" height="46" viewBox="0 0 38 38" fill="none"><defs><linearGradient id="al2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#60C0FF"/><stop offset="100%" stop-color="#1A8CFF"/></linearGradient></defs><rect x="3" y="5" width="5" height="28" rx="1.5" fill="url(#al2)"/><rect x="3" y="16" width="13" height="5" rx="1.5" fill="url(#al2)"/><rect x="11" y="5" width="5" height="28" rx="1.5" fill="url(#al2)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="#00D4FF" transform="rotate(38 21.5 19)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="#00D4FF" transform="rotate(-38 21.5 19)"/><circle cx="24" cy="19" r="2.5" fill="white" opacity="0.9"/></svg>
+        <div class="auth-brand">HYNTRIX <span>AI</span></div>
+      </div>
+      <div class="auth-ttl">Welcome Back</div>
+      <div class="auth-sub">Sign in to your command center</div>
+      <div id="li-err" class="fe"></div>
+      
+      <div class="fg">
+        <label class="fl" for="li-email">Email Address</label>
+        <input class="fi" type="email" id="li-email" placeholder="you@example.com" />
+      </div>
+      <div class="fg">
+        <label class="fl" for="li-pass">Password</label>
+        <input class="fi" type="password" id="li-pass" placeholder="Your password" />
+      </div>
+      
+      <button class="btn-full" id="li-btn" onclick="handleLogin()">
+        <span id="li-btxt">Sign In →</span>
+        <div class="spin" id="li-spin"></div>
+      </button>
+      
+      <p class="fl-lnk">Don't have an account? <a href="/signup.html">Sign up free</a></p>
+      <p class="fl-lnk" style="margin-top:8px"><a href="/forgot-password.html">Forgot password?</a></p>
+      <p class="fl-lnk" style="margin-top:8px"><a href="/">← Back to home</a></p>
+      <p class="fl-lnk" style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">Need help? <a href="/support.html">Contact Support</a></p>
+    </div>
+  </div>
+
+  <script src="auth-utils.js"></script>
+  <script>
+    // ════ MENU ════
+    function toggleMenu() {
+      const menu = document.getElementById('mob-menu');
+      const hbg = document.getElementById('hbg');
+      const isOpen = menu.classList.toggle('open');
+      hbg.classList.toggle('open', isOpen);
+    }
+
+    // ════ LOGIN ════
+    async function handleLogin() {
+      const email = document.getElementById('li-email').value.trim();
+      const pass = document.getElementById('li-pass').value;
+
+      if (!isValidEmail(email)) { showError('li-err', 'Please enter a valid email.'); return; }
+      if (!pass) { showError('li-err', 'Please enter your password.'); return; }
+
+      setLoading('li-btn', 'li-spin', true);
+      clearError('li-err');
+
+      try {
+        const session = await signIn(email, pass);
+        saveAuthSession(session);
+        
+        showToast('Welcome back! ✨', 'success');
+        setTimeout(() => window.location.href = '/dashboard/', 1000);
+      } catch (error) {
+        setLoading('li-btn', 'li-spin', false);
+        showError('li-err', 'Invalid email or password.');
+      }
+    }
+
+    // ════ ENTER KEY ════
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') handleLogin();
+    });
+
+    // ════ CURSOR ════
+    (function(){
+      const c = document.getElementById('cur'), r = document.getElementById('cur-r');
+      if(!c||!r||window.matchMedia('(pointer:coarse)').matches) return;
+      let rx=0,ry=0,mx=0,my=0;
+      document.addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY; c.style.left=mx+'px'; c.style.top=my+'px'; });
+      document.addEventListener('mousedown',()=>{ c.style.width='6px'; c.style.height='6px'; });
+      document.addEventListener('mouseup',()=>{ c.style.width='10px'; c.style.height='10px'; });
+      (function anim(){ rx+=(mx-rx)*.12; ry+=(my-ry)*.12; r.style.left=rx+'px'; r.style.top=ry+'px'; requestAnimationFrame(anim); })();
+    })();
+
+    // ════ CANVAS ════
+    (function(){
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let W, H, particles = [];
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      for (let i = 0; i < 55; i++) {
+        particles.push({
+          x: Math.random() * 1920, y: Math.random() * 1080,
+          vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
+          r: Math.random() * 1.8 + .5, a: Math.random() * .5 + .15,
+          col: Math.random() > .5 ? '#1A8CFF' : '#00D4FF',
+        });
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i+1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 160) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = `rgba(26,140,255,${.08 * (1 - dist/160)})`;
+              ctx.lineWidth = .6;
+              ctx.stroke();
+            }
+          }
+        }
+
+        particles.forEach(p => {
+          p.x += p.vx; p.y += p.vy;
+          if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
+          if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+          ctx.fillStyle = p.col + Math.round(p.a * 255).toString(16).padStart(2,'0');
+          ctx.fill();
+        });
+
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    // ════ REDIRECT IF LOGGED IN ════
+    (async function() {
+      const session = await restoreSession();
+      if (session) {
+        window.location.href = '/dashboard/';
+      }
+    })();
+  </script>
+</body>
+</html>

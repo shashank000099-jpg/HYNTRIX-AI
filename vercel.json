@@ -1,5 +1,6 @@
 {
-  "buildCommand": "echo 'Static site - no build needed'",
-  "framework": "static",
-  "public": "."
+  {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "next build"
+}
 }

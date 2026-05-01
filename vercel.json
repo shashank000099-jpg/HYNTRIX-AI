@@ -1,0 +1,17 @@
+{
+  "buildCommand": "echo 'Static site - no build needed'",
+  "framework": "static",
+  "public": ".",
+  "rewrites": [
+    { "source": "/dashboard", "destination": "/dashboard/index.html" },
+    { "source": "/auth/callback", "destination": "/auth/callback.html" },
+    { "source": "/reset-password", "destination": "/reset-password.html" },
+    { "source": "/verify", "destination": "/verify.html" },
+    { "source": "/support", "destination": "/support.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/forgot-password", "destination": "/forgot-password.html" }
+  ]
+}

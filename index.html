@@ -1,13 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hyntrix AI — Do More. Think Less.</title>
-  <meta name="description" content="AI command center that handles everything. Write content, automate workflows, create videos, and execute tasks across all your apps.">
+  <title>Dashboard — Hyntrix AI</title>
+  <meta name="description" content="Your Hyntrix AI command center dashboard.">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="../styles.css" />
 </head>
 <body>
   <div id="cur"></div>
@@ -37,10 +37,8 @@
       </div>
     </a>
     <div class="nav-desk">
-      <button class="nav-lnk" onclick="smoothScrollTo('features')">Features</button>
-      <button class="nav-lnk" onclick="smoothScrollTo('early-access')">Early Access</button>
-      <a href="/login.html" class="nav-lnk">Sign In</a>
-      <a href="/signup.html" class="nav-cta">Get Started →</a>
+      <a href="/support.html" class="nav-lnk">Support</a>
+      <button class="nav-lnk" onclick="handleLogout()">Sign Out</button>
     </div>
     <button class="hbg" id="hbg" onclick="toggleMenu()">
       <span></span><span></span><span></span>
@@ -48,111 +46,122 @@
   </nav>
 
   <div class="mob-menu" id="mob-menu">
-    <button class="mob-lnk" onclick="mNav('features')">Features</button>
-    <button class="mob-lnk" onclick="mNav('early-access')">Early Access</button>
-    <a href="/login.html" class="mob-lnk">Sign In</a>
-    <a href="/signup.html" class="mob-cta">Get Started →</a>
+    <a href="/support.html" class="mob-lnk">Support</a>
+    <button class="mob-lnk" onclick="handleLogout()">Sign Out</button>
   </div>
 
-  <!-- HERO -->
-  <section style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:100px clamp(16px,5vw,40px) 60px;position:relative;z-index:1">
-    <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(26,140,255,.09);border:1px solid rgba(26,140,255,.22);border-radius:100px;padding:7px 18px;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(130,190,255,.9);margin-bottom:28px">
-      <div style="width:7px;height:7px;border-radius:50%;background:var(--b);animation:pd 2s ease-in-out infinite"></div> Private Beta
-    </div>
-    <h1 style="font-family:var(--head);font-size:clamp(58px,15vw,120px);line-height:.88;letter-spacing:.01em;text-transform:uppercase;font-weight:900;margin-bottom:24px">
-      <span style="display:block;color:var(--text)">DO MORE.</span>
-      <span style="display:block;background:linear-gradient(135deg,var(--b) 0%,var(--b2) 55%,#60CFFF 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 44px rgba(26,140,255,.42))">THINK LESS.</span>
-      <span style="display:block;color:rgba(220,235,255,.65)">BUILD FAST.</span>
-    </h1>
-    <p style="font-size:clamp(14px,3.2vw,18px);color:var(--mid);max-width:500px;margin:0 auto 38px;line-height:1.78">One command. Hyntrix AI writes, sends, automates, builds, and executes — across every app you use.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:50px">
-      <button class="btn-p" onclick="smoothScrollTo('early-access')">⚡ Join the Waitlist</button>
-      <a href="/signup.html" class="btn-g">Start Building →</a>
-    </div>
-  </section>
-
-  <!-- FEATURES -->
-  <section id="features" style="padding:72px clamp(16px,5vw,40px);max-width:1100px;margin:0 auto;position:relative;z-index:1">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--b);margin-bottom:14px">What Hyntrix Does</div>
-    <h2 style="font-family:var(--head);font-size:clamp(26px,5.5vw,50px);font-weight:800;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px">One Command. Infinite Actions.</h2>
-    <p style="color:var(--mid);font-size:16px;max-width:540px;line-height:1.78;margin-bottom:48px">Stop copy-pasting between apps. Hyntrix handles everything — you just tell it what you want.</p>
-    
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,275px),1fr));gap:15px">
-      <div class="dcard" onclick="showFeatureToast('Content on Autopilot')">
-        <div class="ficon">✍️</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Content on Autopilot</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">You think of an idea. Hyntrix writes the blog post, Instagram caption, and YouTube script in seconds.</p>
+  <!-- DASHBOARD -->
+  <div class="dash-wrap">
+    <!-- GREETING CARD -->
+    <div class="greet-card" id="greet-card">
+      <div class="burst" id="burst-container"></div>
+      <div class="greet-tag">
+        <div class="greet-live"></div>
+        Command Center Active
       </div>
-      <div class="dcard" onclick="showFeatureToast('Automation That Thinks')">
-        <div class="ficon">⚡</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Automation That Thinks</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Connect Gmail, Instagram, WhatsApp — let Hyntrix handle replies and workflows while you sleep.</p>
+      <div class="greet-hello">
+        Hey, <span class="greet-name" id="greet-name">Commander</span> 👋
       </div>
-      <div class="dcard" onclick="showFeatureToast('Build Without Code')">
-        <div class="ficon">🌐</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Build Without Code</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Describe the website you want. Hyntrix generates, deploys, and hands you the link.</p>
+      <p class="greet-sub" id="greet-sub">
+        Your AI command center is fully operational. Hyntrix is armed, connected, and waiting for your first command.
+      </p>
+      <div class="greet-meta">
+        <div class="greet-chip">🟢 All systems online</div>
+        <div class="greet-chip" id="greet-time">⏰ Loading...</div>
+        <div class="greet-chip" id="greet-plan">⚡ Free Plan</div>
       </div>
-      <div class="dcard" onclick="showFeatureToast('Just Speak. It Executes.')">
-        <div class="ficon">🎙️</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Just Speak. It Executes.</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Say your command — your AI assistant takes action. No typing required.</p>
-      </div>
-      <div class="dcard" onclick="showFeatureToast('Videos from Text')">
-        <div class="ficon">🎬</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Videos from Text</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Type a script — Hyntrix generates a full video with voiceover and visuals.</p>
-      </div>
-      <div class="dcard" onclick="showFeatureToast('AI That Remembers You')">
-        <div class="ficon">🧠</div>
-        <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">AI That Remembers You</h3>
-        <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Hyntrix learns your brand, tone, and preferences. Every response gets better.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- EARLY ACCESS -->
-  <section id="early-access" style="padding:72px clamp(16px,5vw,40px);display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1">
-    <div style="max-width:540px;margin-bottom:44px">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--b);margin-bottom:14px">Early Access</div>
-      <h2 style="font-family:var(--head);font-size:clamp(26px,5.5vw,50px);font-weight:800;line-height:1.08;letter-spacing:-.5px;margin-bottom:14px">Be First. Get More.</h2>
-      <p style="color:var(--mid);font-size:16px;line-height:1.78;margin-bottom:0">Waitlist members get 3 months free Pro access and priority support.</p>
     </div>
 
-    <div style="width:100%;max-width:540px;background:rgba(4,4,12,.94);border:1px solid var(--border);border-radius:var(--r-xl);padding:clamp(26px,5vw,46px) clamp(18px,5vw,42px);backdrop-filter:blur(44px);-webkit-backdrop-filter:blur(44px);box-shadow:0 28px 80px rgba(0,0,0,.5);position:relative;overflow:hidden">
-      <div style="position:absolute;top:-1px;left:15%;right:15%;height:1px;background:linear-gradient(90deg,transparent,var(--b),var(--b2),transparent)"></div>
+    <!-- YOUR ACCOUNT SECTION -->
+    <div style="margin-top:48px;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl)">
+      <div class="section-title">Your Account</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:20px">
+        <div style="padding:16px;background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.15);border-radius:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Email Address</div>
+          <div style="font-size:15px;font-weight:600;color:var(--text)" id="account-email">loading...</div>
+        </div>
+        <div style="padding:16px;background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.15);border-radius:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Account Status</div>
+          <div style="font-size:15px;font-weight:600;color:#86EFAC">✓ Active</div>
+        </div>
+      </div>
+      <button class="btn-g" onclick="handleLogout()" style="padding:10px 24px;font-size:14px">Sign Out</button>
+    </div>
+
+    <!-- COMING FEATURES SECTION -->
+    <div style="margin-top:40px">
+      <div class="section-title">Coming Features</div>
+      <div class="dash-grid">
+        <div class="dcard">
+          <div class="ficon">💬</div>
+          <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">AI Chat</h3>
+          <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Chat with DeepSeek, Claude, or Mistral. Switch models instantly.</p>
+          <button class="btn-g" style="margin-top:16px;padding:10px 20px;font-size:13.5px;width:100%;justify-content:center;cursor:not-allowed">Coming Soon</button>
+        </div>
+        <div class="dcard">
+          <div class="ficon">⚡</div>
+          <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Automation</h3>
+          <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Connect apps and build workflows that run 24/7 automatically.</p>
+          <button class="btn-g" style="margin-top:16px;padding:10px 20px;font-size:13.5px;width:100%;justify-content:center;cursor:not-allowed">Coming Soon</button>
+        </div>
+        <div class="dcard">
+          <div class="ficon">🎬</div>
+          <h3 style="font-family:var(--head);font-size:17px;font-weight:700;margin-bottom:8px">Agents</h3>
+          <p style="color:var(--mid);font-size:13.5px;line-height:1.7">Deploy autonomous AI agents that handle complex multi-step tasks.</p>
+          <button class="btn-g" style="margin-top:16px;padding:10px 20px;font-size:13.5px;width:100%;justify-content:center;cursor:not-allowed">Coming Soon</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORKING HOURS & SUPPORT SECTION -->
+    <div style="margin-top:40px;padding:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl)">
+      <div class="section-title">Working Hours & Support</div>
       
-      <div style="width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--b),var(--b3));display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;box-shadow:0 0 44px rgba(26,140,255,.5)">⚡</div>
-      <div style="font-family:var(--head);font-size:clamp(20px,5vw,28px);font-weight:800;letter-spacing:-.3px;margin-bottom:8px">Join the Waitlist</div>
-      <div style="color:var(--mid);font-size:14px;margin-bottom:22px;line-height:1.6">Get early access when we launch. No spam. Ever.</div>
-      
-      <div id="wl-err" class="fe"></div>
-      <div class="fg"><label class="fl" for="wl-name">Full Name</label><input class="fi" type="text" id="wl-name" placeholder="Your name" /></div>
-      <div class="fg"><label class="fl" for="wl-email">Email Address</label><input class="fi" type="email" id="wl-email" placeholder="you@example.com" /></div>
-      <button class="btn-full" id="wl-btn" onclick="submitWaitlist()">
-        <span id="wl-btxt">⚡ Claim My Spot</span><div class="spin" id="wl-spin"></div>
-      </button>
-      <div class="priv">🔒 No spam. Unsubscribe anytime.</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px">
+        <div style="padding:20px;background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.15);border-radius:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">📅 Working Hours</div>
+          <div style="font-size:13.5px;color:var(--mid);line-height:1.8">
+            <div>Monday - Saturday: 10 AM – 7 PM</div>
+            <div style="color:#FCA5A5;margin-top:8px">Sunday: Closed</div>
+          </div>
+        </div>
+
+        <div style="padding:20px;background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.15);border-radius:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">📧 Contact Email</div>
+          <a href="mailto:hyntrixaidesk@gmail.com" style="font-size:13.5px;color:var(--b);text-decoration:none;word-break:break-all;display:block;margin-bottom:12px">hyntrixaidesk@gmail.com</a>
+          <a href="mailto:hyntrixaidesk@gmail.com" class="btn-g" style="padding:8px 16px;font-size:12px;width:100%;justify-content:center;text-decoration:none">Send Email</a>
+        </div>
+
+        <div style="padding:20px;background:rgba(26,140,255,.08);border:1px solid rgba(26,140,255,.15);border-radius:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px">📸 Instagram</div>
+          <a href="https://www.instagram.com/hyntrixai" target="_blank" rel="noopener" style="font-size:13.5px;color:var(--b);text-decoration:none;display:block;margin-bottom:12px">@hyntrixai</a>
+          <a href="https://www.instagram.com/hyntrixai" target="_blank" rel="noopener" class="btn-g" style="padding:8px 16px;font-size:12px;width:100%;justify-content:center;text-decoration:none">Follow Us</a>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding:16px;background:rgba(26,140,255,.05);border:1px solid rgba(26,140,255,.1);border-radius:10px">
+        <div style="font-size:13px;color:var(--mid);margin-bottom:8px">💡 Need immediate help?</div>
+        <a href="/support.html" class="btn-p" style="width:100%;text-decoration:none;justify-content:center;padding:10px">Go to Support Page →</a>
+      </div>
     </div>
-  </section>
+  </div>
 
   <!-- FOOTER -->
   <footer>
-    <a href="/" class="ft-logo">
+    <a href="/" class="ft-logo" style="text-decoration:none">
       <svg width="22" height="22" viewBox="0 0 38 38" fill="none"><defs><linearGradient id="fl1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#60C0FF"/><stop offset="100%" stop-color="#1A8CFF"/></linearGradient></defs><rect x="3" y="5" width="5" height="28" rx="1.5" fill="url(#fl1)"/><rect x="3" y="16" width="13" height="5" rx="1.5" fill="url(#fl1)"/><rect x="11" y="5" width="5" height="28" rx="1.5" fill="url(#fl1)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="#00D4FF" transform="rotate(38 21.5 19)"/><rect x="19" y="4" width="5" height="30" rx="1.5" fill="#00D4FF" transform="rotate(-38 21.5 19)"/></svg>
       HYNTRIX <span class="ft-g">AI</span>
     </a>
     <p>© 2025 Hyntrix AI. All rights reserved.</p>
     <div class="ft-links">
-      <a href="/login.html" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Sign In</a>
-      <a href="/signup.html" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Sign Up</a>
       <a href="/support.html" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Support</a>
       <a href="/terms.html" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Terms</a>
       <a href="/privacy.html" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Privacy</a>
+      <a href="https://www.instagram.com/hyntrixai" target="_blank" rel="noopener" style="color:var(--muted);font-size:13px;cursor:pointer;transition:color .2s;text-decoration:none">Instagram</a>
     </div>
   </footer>
 
-  <script src="auth-utils.js"></script>
+  <script src="../auth-utils.js"></script>
   <script>
     // ════ MENU ════
     function toggleMenu() {
@@ -162,50 +171,30 @@
       hbg.classList.toggle('open', isOpen);
     }
 
-    function mNav(sectionId) {
-      document.getElementById('mob-menu').classList.remove('open');
-      document.getElementById('hbg').classList.remove('open');
-      smoothScrollTo(sectionId);
+    // ════ LOGOUT ════
+    async function handleLogout() {
+      const token = getStoredToken();
+      await signOut(token);
+      showToast('Signed out successfully', 'success');
+      setTimeout(() => window.location.href = '/', 800);
     }
 
-    function smoothScrollTo(sectionId) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
+    // ════ REQUIRE AUTH ════
+    (async function() {
+      const session = await restoreSession();
+      if (!session) {
+        window.location.href = '/login.html';
+        return;
       }
-    }
 
-    // ════ WAITLIST ════
-    async function submitWaitlist() {
-      const name = document.getElementById('wl-name').value.trim();
-      const email = document.getElementById('wl-email').value.trim();
+      // Setup greeting
+      const user = session.user;
+      const email = user?.email || user?.name || 'Commander';
+      const name = user?.user_metadata?.full_name || email.split('@')[0];
       
-      if (!name) { showError('wl-err', 'Please enter your name.'); return; }
-      if (!isValidEmail(email)) { showError('wl-err', 'Please enter a valid email.'); return; }
-      
-      setLoading('wl-btn', 'wl-spin', true);
-      clearError('wl-err');
-      
-      try {
-        await authFetch('/rest/v1/waitlist', 'POST', { name, email, position: Math.floor(Math.random() * 300) + 2848 });
-        showToast('Welcome to the waitlist! Check your email 📩', 'success');
-        document.getElementById('wl-name').value = '';
-        document.getElementById('wl-email').value = '';
-      } catch (error) {
-        if (error.message.includes('duplicate') || error.message.includes('unique')) {
-          showError('wl-err', 'Email already on the waitlist!');
-        } else {
-          showError('wl-err', 'Failed to join waitlist. Try again.');
-        }
-      } finally {
-        setLoading('wl-btn', 'wl-spin', false);
-      }
-    }
-
-    // ════ FEATURE TOAST ════
-    function showFeatureToast(featureName) {
-      showToast(`${featureName} - Coming soon! 🚀`, 'success');
-    }
+      setupGreeting(name);
+      document.getElementById('account-email').textContent = email;
+    })();
 
     // ════ CURSOR ════
     (function(){
@@ -218,7 +207,7 @@
       (function anim(){ rx+=(mx-rx)*.12; ry+=(my-ry)*.12; r.style.left=rx+'px'; r.style.top=ry+'px'; requestAnimationFrame(anim); })();
     })();
 
-    // ════ CANVAS PARTICLES ════
+    // ════ CANVAS ════
     (function(){
       const canvas = document.getElementById('bg-canvas');
       if (!canvas) return;

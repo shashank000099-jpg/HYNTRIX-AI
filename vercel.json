@@ -1,7 +1,6 @@
 {
-  "buildCommand": "echo 'Static site - no build needed'",
-  "framework": "static",
-  "public": ".",
+  "buildCommand": "echo Static site",
+  "outputDirectory": ".",
   "rewrites": [
     { "source": "/dashboard", "destination": "/dashboard/index.html" },
     { "source": "/auth/callback", "destination": "/auth/callback.html" },

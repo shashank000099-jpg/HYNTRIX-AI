@@ -1,0 +1,234 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { supabaseClient } from '../../../lib/supabase/client';
+import Input from '../../../components/ui/Input';
+import Button from '../../../components/ui/Button';
+
+// Simple validation schema
+const signupSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string().min(6, 'Password must be at least 6 characters')
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword']
+});
+
+type SignupForm = z.infer<typeof signupSchema>;
+
+export default function SignupPage() {
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  
+  const { register, handleSubmit, formState: { errors } } = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema)
+  });
+
+  const onSubmit = async (data: SignupForm) => {
+    if (!supabaseClient) {
+      setError('Setup error. Please check your configuration.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      const { error: signUpError, data: authData } = await supabaseClient.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`
+        }
+      });
+
+      if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+          setError('Email already registered. Try logging in.');
+        } else if (signUpError.message.includes('Invalid email')) {
+          setError('Please enter a valid email');
+        } else {
+          setError('Signup failed. Try again.');
+        }
+        return;
+      }
+
+      if (authData.user) {
+        setSuccess(true);
+        // Redirect after showing success message
+        setTimeout(() => {
+          router.push('/auth/login?verified=check-email');
+        }, 2000);
+      }
+    } catch (err) {
+      setError('Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    if (!supabaseClient) {
+      setError('Setup error. Please check your configuration.');
+      return;
+    }
+
+    try {
+      setGoogleLoading(true);
+      setError('');
+      
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`
+        }
+      });
+
+      if (error) {
+        setError('Google sign up failed. Try again.');
+      }
+    } catch (err) {
+      setError('Something went wrong. Try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-lg p-8">
+            <div className="mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 border border-green-500/40">
+                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Account Created!</h2>
+            <p className="text-gray-400 mb-4">Check your email to verify your account</p>
+            <p className="text-sm text-gray-500">Redirecting you to sign in...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* Logo / Branding */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-white mb-2">Hyntrix AI</h1>
+          <p className="text-gray-400">Your AI Founder Operating System</p>
+        </div>
+
+        {/* Signup Card */}
+        <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-lg p-8">
+          <h2 className="text-2xl font-bold text-white mb-2">Create Account</h2>
+          <p className="text-gray-400 text-sm mb-8">Get started in seconds</p>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Email</label>
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                {...register('email')}
+                error={!!errors.email}
+              />
+              {errors.email && (
+                <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Password</label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+                error={!!errors.password}
+              />
+              {errors.password && (
+                <p className="mt-1 text-xs text-red-400">{errors.password.message}</p>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">Confirm Password</label>
+              <Input
+                type="password"
+                placeholder="••••••••"
+                {...register('confirmPassword')}
+                error={!!errors.confirmPassword}
+              />
+              {errors.confirmPassword && (
+                <p className="mt-1 text-xs text-red-400">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </Button>
+          </form>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-xs text-gray-500">or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
+          {/* Google Button */}
+          <button
+            onClick={handleGoogle}
+            disabled={googleLoading}
+            className="w-full px-4 py-3 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 text-white font-medium transition disabled:opacity-50"
+          >
+            {googleLoading ? 'Creating account...' : 'Sign Up with Google'}
+          </button>
+
+          {/* Links */}
+          <div className="mt-8 text-center text-sm text-gray-400">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="text-blue-400 hover:text-blue-300 font-medium">
+              Sign In
+            </Link>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-600 mt-8">
+          By signing up, you agree to our Terms of Service and Privacy Policy
+        </p>
+      </div>
+    </div>
+  );
+}

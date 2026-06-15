@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Rocket, Star, Users, FileText, Settings, Clock3, Award, ShieldCheck, Sparkles, MessageCircle, Circle, User, LogOut, Zap } from 'lucide-react'
+import { LayoutDashboard, Rocket, Star, Users, FileText, Settings, MessageCircle, LogOut, Zap, Bookmark } from 'lucide-react'
 import { useAuthStore } from '../../lib/auth-store'
 import { useState, useEffect } from 'react'
 import { getWallet } from '../../lib/credits'
@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Social Intelligence', href: '/social-intelligence', icon: MessageCircle },
   { label: 'AI Client Finder', href: '/ai-client-finder', icon: Users },
   { label: 'Reports', href: '/history', icon: FileText },
+  { label: 'Saved Reports', href: '/saved-reports', icon: Bookmark },
   { label: 'Pricing', href: '/buy-credits', icon: Zap },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
@@ -75,8 +76,8 @@ export default function Sidebar() {
             <p className="text-sm leading-6 text-slate-400">A premium AI command center for launch-ready founders.</p>
           </motion.div>
 
-          {/* Credits Badge */}
-          <Link href={'/pricing' as any}>
+          {/* Credits Badge - links to buy-credits */}
+          <Link href="/buy-credits">
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

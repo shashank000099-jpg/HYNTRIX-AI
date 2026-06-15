@@ -176,6 +176,104 @@ create table if not exists credits (
 
 create index if not exists idx_credits_user_id on credits(user_id);
 
+-- Transaction audit trail for credits
+create table if not exists transactions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  transaction_type text not null check (transaction_type in ('purchase', 'usage', 'bonus', 'refund', 'signup')),
+  credits integer not null,
+  balance_before integer not null default 0,
+  balance_after integer not null default 0,
+  description text,
+  reference_type text,
+  reference_id text,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_transactions_user_id on transactions(user_id);
+create index if not exists idx_transactions_created_at on transactions(created_at);
+
+-- Stored AI reports (unified for all features)
+create table if not exists stored_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  feature_key text not null,
+  feature_title text,
+  category text,
+  input text,
+  report jsonb not null,
+  credits_used int default 0,
+  saved boolean default false,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_stored_reports_user_id on stored_reports(user_id);
+create index if not exists idx_stored_reports_feature_key on stored_reports(feature_key);
+create index if not exists idx_stored_reports_created_at on stored_reports(created_at);
+
+-- AI Client Finder tables (future)
+create table if not exists client_finder_searches (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  search_query text,
+  industry text,
+  location text,
+  min_size text,
+  keywords text[],
+  results_count int,
+  credits_used int default 20,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_client_finder_searches_user_id on client_finder_searches(user_id);
+
+create table if not exists client_finder_results (
+  id uuid primary key default gen_random_uuid(),
+  search_id uuid references client_finder_searches(id) on delete cascade,
+  company_name text,
+  website text,
+  industry text,
+  size text,
+  location text,
+  tech_stack text[],
+  funding text,
+  fit_score int,
+  opportunity_summary text,
+  outreach_text text,
+  decision_makers jsonb,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_client_finder_results_search_id on client_finder_results(search_id);
+
+-- Analytics events (future)
+create table if not exists analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete set null,
+  event_type text not null,
+  event_data jsonb default '{}',
+  page text,
+  session_id text,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_analytics_events_user_id on analytics_events(user_id);
+create index if not exists idx_analytics_events_type on analytics_events(event_type);
+create index if not exists idx_analytics_events_created_at on analytics_events(created_at);
+
+-- Advisor feedback (board room)
+create table if not exists advisor_feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  session_id text,
+  advisor_id text,
+  question text,
+  feedback text,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_advisor_feedback_user_id on advisor_feedback(user_id);
+
 create table if not exists payments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,

@@ -14,6 +14,7 @@ import CreditGate from './ui/CreditGate'
 import type { FeatureType } from '../lib/credits'
 import { useAuthStore } from '../lib/auth-store'
 import { useCreditsStore } from '../lib/credits-store'
+import type { AIReport } from '../lib/ai/types'
 
 const workspaceSchema = z.object({
   query: z.string().min(3, 'Enter a valid prompt')
@@ -31,12 +32,13 @@ interface FeatureWorkspaceProps {
 export default function FeatureWorkspace({ title, description, inputLabel, featureKey }: FeatureWorkspaceProps) {
   const { user } = useAuthStore()
   const { fetchBalance } = useCreditsStore()
-  const [result, setResult] = useState<typeof sampleResult | null>(null)
+  const [report, setReport] = useState<AIReport | null>(null)
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [shared, setShared] = useState(false)
   const [generateCount, setGenerateCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [remainingCredits, setRemainingCredits] = useState<number | null>(null)
 
   const form = useForm<WorkspaceValues>({
     resolver: zodResolver(workspaceSchema),
@@ -46,17 +48,26 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
   const handleGenerate = async () => {
     if (!user?.id) return
 
+    // Get the query from the form
+    const query = form.getValues('query')
+    if (!query || query.length < 3) {
+      setError('Please enter at least 3 characters')
+      return
+    }
+
     setLoading(true)
     setError(null)
-    setResult(null)
+    setReport(null)
 
     try {
-      // Server-side credit deduction
-      const response = await fetch('/api/credits/deduct', {
+      // Step 1: Call the universal AI generation API
+      const response = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          feature: featureKey,
+          featureKey: featureKey,
+          input: query,
+          userId: user.id,
         }),
       })
 
@@ -64,29 +75,139 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
 
       if (!response.ok) {
         if (response.status === 402) {
-          setError(data.error)
+          setError(data.error || 'Insufficient credits. Please buy more credits.')
           setLoading(false)
           return
         }
-        setError(data.error || 'Failed to process request')
+        if (response.status === 502) {
+          setError(data.error || 'AI generation failed. Please try again.')
+          setLoading(false)
+          return
+        }
+        setError(data.error || 'Failed to generate report')
         setLoading(false)
         return
       }
 
-      // Simulate AI generation (Phase 2 will use real AI)
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+      // Step 2: Set the real AI report
+      if (data.report) {
+        setReport(data.report as AIReport)
+        setRemainingCredits(data.remainingCredits)
+      } else {
+        setError('No report data received')
+      }
 
-      setResult(sampleResult)
       setGenerateCount(prev => prev + 1)
-      // Update credit balance in store after successful deduction
+
+      // Step 3: Update credit balance in store
       if (user?.id) {
         fetchBalance(user.id)
       }
     } catch (err: any) {
-      setError(err?.message || 'An error occurred')
+      setError(err?.message || 'An error occurred. Your credits were NOT deducted.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSave = async () => {
+    if (!user?.id || !report) return
+
+    try {
+      const { supabaseClient } = await import('../lib/supabase/client')
+      if (!supabaseClient) return
+
+      await supabaseClient.from('saved_reports').insert({
+        user_id: user.id,
+        report_type: report.featureKey.includes('startup') ? 'startup' : 
+                     report.featureKey.includes('founder') ? 'founder' : 'social',
+        report_id: report.id,
+        title: report.featureTitle,
+        subtitle: report.verdict,
+        score: report.overallScore,
+      } as any)
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      console.error('Error saving report:', err)
+    }
+  }
+
+  const handleShare = async () => {
+    if (!report) return
+    try {
+      await navigator.share({
+        title: `${report.featureTitle} Report - HYNTRIX AI`,
+        text: `${report.featureTitle} analysis: ${report.verdict} (Score: ${report.overallScore}/100)`,
+        url: window.location.href,
+      })
+    } catch {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(
+          `${report.featureTitle} Report - HYNTRIX AI\n\n${report.verdict}\nScore: ${report.overallScore}/100\n\nView: ${window.location.href}`
+        )
+        setShared(true)
+        setTimeout(() => setShared(false), 3000)
+      } catch {
+        // Ignore clipboard errors
+      }
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!report || !user?.id) return
+
+    try {
+      // Try to generate PDF content via print-friendly format
+      const printContent = `
+HYNTRIX AI - ${report.featureTitle} Report
+Date: ${new Date(report.createdAt).toLocaleDateString()}
+Score: ${report.overallScore}/100
+Risk Level: ${report.riskLevel.toUpperCase()}
+
+VERDICT:
+${report.verdict}
+
+${report.summary ? `SUMMARY:\n${report.summary}\n` : ''}
+
+STRENGTHS:
+${report.strengths.map(s => `- ${s}`).join('\n')}
+
+WEAKNESSES:
+${report.weaknesses.map(w => `- ${w}`).join('\n')}
+
+RECOMMENDATIONS:
+${report.recommendations.map(r => `- ${r}`).join('\n')}
+
+ACTION PLAN:
+${report.actionPlan.map((a, i) => `${i + 1}. ${a}`).join('\n')}
+
+Generated by HYNTRIX AI - AI Operating System for Founders
+      `.trim()
+
+      // Create a blob and download
+      const blob = new Blob([printContent], { type: 'text/plain;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${report.featureKey}-report-${Date.now()}.txt`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Fallback: print
+      window.print()
+    }
+  }
+
+  // Determine metrics from report scores
+  const getScoreMetrics = () => {
+    if (!report?.scores) return defaultMetrics
+    return Object.entries(report.scores).map(([key, value]) => ({
+      label: key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()),
+      value: typeof value === 'number' ? value : 0,
+    }))
   }
 
   return (
@@ -97,7 +218,7 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
             <div>
               <p className="text-sm uppercase tracking-[0.22em] text-slate-500">{title}</p>
               <h1 className="mt-2 text-3xl font-semibold text-white">{description}</h1>
-              <p className="mt-3 text-sm leading-7 text-slate-300">Use the AI operating system to generate fast insights, analysis, and recommendations without building the backend.</p>
+              <p className="mt-3 text-sm leading-7 text-slate-300">Use the AI operating system to generate fast insights, analysis, and recommendations.</p>
             </div>
 
             {error && (
@@ -108,21 +229,33 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
 
             <form className="space-y-4" onSubmit={form.handleSubmit(() => {})}>
               <label className="block text-sm font-medium text-slate-200">{inputLabel ?? 'Enter your business details'}</label>
-              <Input placeholder="Share details for analysis" {...form.register('query')} />
-              {form.formState.errors.query ? <p className="text-sm text-red-400">{form.formState.errors.query.message}</p> : null}
+              <Input
+                placeholder="Share details for analysis"
+                {...form.register('query')}
+              />
+              {form.formState.errors.query ? (
+                <p className="text-sm text-red-400">{form.formState.errors.query.message}</p>
+              ) : null}
             </form>
           </div>
-          {loading ? <LoadingOverlay label={generateCount > 0 ? 'Regenerating report...' : 'Crafting a premium report...'} /> : null}
+          {loading ? <LoadingOverlay label={generateCount > 0 ? 'Regenerating report...' : 'Generating AI-powered analysis...'} /> : null}
         </Card>
 
         <Card>
           <div className="space-y-4">
             <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Report Snapshot</p>
             <div className="rounded-[2rem] bg-slate-950/50 p-6">
-              <CircularProgress value={result?.overallScore ?? sampleResult.overallScore} />
+              <CircularProgress value={report?.overallScore ?? 0} />
             </div>
+            {report && (
+              <div className="text-center">
+                <p className="text-xs text-slate-500">
+                  {remainingCredits !== null ? `${remainingCredits} credits remaining` : ''}
+                </p>
+              </div>
+            )}
             <div className="space-y-3">
-              {(result?.metrics ?? sampleResult.metrics).map((metric) => (
+              {getScoreMetrics().map((metric) => (
                 <div key={metric.label} className="rounded-3xl bg-white/5 p-4">
                   <div className="text-sm text-slate-400">{metric.label}</div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/5">
@@ -135,7 +268,7 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
         </Card>
       </div>
 
-      {/* Credit Gate - requires server-side deduction before allowing generate */}
+      {/* Credit Gate */}
       <CreditGate
         feature={featureKey as FeatureType}
         onGenerate={handleGenerate}
@@ -144,28 +277,39 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
         <div />
       </CreditGate>
 
-      {result ? (
+      {/* AI Report Results */}
+      {report ? (
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <p className="text-xs text-slate-500">Generated {generateCount} time{generateCount !== 1 ? 's' : ''} — each generation costs credits</p>
+          <p className="text-xs text-slate-500">
+            Generated {generateCount} time{generateCount !== 1 ? 's' : ''} — {report.creditsUsed} credits used
+            {report.confidenceScore ? ` · ${report.confidenceScore}/100 confidence` : ''}
+          </p>
 
+          {/* Verdict & Summary */}
           <Card>
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-6">
                 <h2 className="text-xl font-semibold text-white">AI Verdict</h2>
-                <p className="mt-3 max-w-xl text-slate-300">Based on the inputs, this feature report recommends a focused strategy to move forward with confidence. The model sees strong opportunity if you sharpen execution and market signals.</p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {['Build', 'Pivot', 'Avoid'].map((label) => (
-                    <div key={label} className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4 text-center text-sm text-slate-200">
-                      {label}
-                    </div>
-                  ))}
+                <p className="mt-3 max-w-xl text-slate-300">{report.verdict}</p>
+                {report.summary && (
+                  <p className="mt-3 text-sm text-slate-400">{report.summary}</p>
+                )}
+                <div className="mt-6 flex items-center gap-3">
+                  <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                    report.riskLevel === 'low' ? 'bg-green-500/20 text-green-400' :
+                    report.riskLevel === 'high' ? 'bg-red-500/20 text-red-400' :
+                    'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {report.riskLevel.toUpperCase()} RISK
+                  </span>
+                  <span className="text-sm text-slate-400">Score: {report.overallScore}/100</span>
                 </div>
               </div>
               <div className="space-y-4 rounded-[2rem] border border-white/10 bg-slate-950/70 p-6">
                 <div>
                   <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Strengths</p>
                   <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                    {result.strengths.map((item) => (
+                    {report.strengths.map((item: string) => (
                       <li key={item}>• {item}</li>
                     ))}
                   </ul>
@@ -173,7 +317,7 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
                 <div>
                   <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Weaknesses</p>
                   <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                    {result.weaknesses.map((item) => (
+                    {report.weaknesses.map((item: string) => (
                       <li key={item}>• {item}</li>
                     ))}
                   </ul>
@@ -182,12 +326,13 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
             </div>
           </Card>
 
+          {/* Opportunities, Threats, Recommendations */}
           <Card>
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                 <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Opportunities</p>
                 <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                  {result.opportunities.map((item) => (
+                  {report.opportunities.map((item: string) => (
                     <li key={item}>• {item}</li>
                   ))}
                 </ul>
@@ -195,7 +340,7 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                 <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Threats</p>
                 <ul className="mt-4 space-y-2 text-sm text-slate-300">
-                  {result.threats.map((item) => (
+                  {report.threats.map((item: string) => (
                     <li key={item}>• {item}</li>
                   ))}
                 </ul>
@@ -203,18 +348,54 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                 <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Recommendations</p>
                 <ol className="mt-4 space-y-2 text-sm text-slate-300 list-decimal pl-5">
-                  <li>Validate your positioning with the highest-value customer segment.</li>
-                  <li>Focus on repeatable acquisition with a bottom-up conversion funnel.</li>
-                  <li>Build a lean minimum lovable product before expanding to additional channels.</li>
+                  {report.recommendations.map((item: string) => (
+                    <li key={item}>{item}</li>
+                  ))}
                 </ol>
               </div>
             </div>
           </Card>
 
+          {/* Insights */}
+          {report.insights && report.insights.length > 0 && (
+            <Card>
+              <div className="p-5">
+                <p className="text-sm uppercase tracking-[0.22em] text-slate-500 mb-4">Key Insights</p>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {report.insights.map((insight: string, i: number) => (
+                    <div key={i} className="rounded-xl bg-blue-500/5 border border-blue-500/10 p-4">
+                      <p className="text-sm text-slate-300">{insight}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Action Plan */}
+          {report.actionPlan && report.actionPlan.length > 0 && (
+            <Card>
+              <div className="p-5">
+                <p className="text-sm uppercase tracking-[0.22em] text-slate-500 mb-4">Action Plan</p>
+                <div className="space-y-3">
+                  {report.actionPlan.map((step: string, i: number) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs flex items-center justify-center font-semibold mt-0.5">
+                        {i + 1}
+                      </span>
+                      <p className="text-sm text-slate-300">{step}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Actions */}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={() => setSaved(true)}>{saved ? 'Report Saved' : 'Save Report'}</Button>
-            <Button variant="secondary" onClick={() => setShared(true)}>{shared ? 'Shared' : 'Share Report'}</Button>
-            <Button variant="ghost">Download PDF</Button>
+            <Button onClick={handleSave}>{saved ? '✓ Saved!' : 'Save Report'}</Button>
+            <Button variant="secondary" onClick={handleShare}>{shared ? '✓ Shared!' : 'Share Report'}</Button>
+            <Button variant="ghost" onClick={handleDownloadPDF}>Download PDF</Button>
           </div>
         </motion.div>
       ) : null}
@@ -222,16 +403,9 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
   )
 }
 
-const sampleResult = {
-  overallScore: 82,
-  metrics: [
-    { label: 'Market Demand', value: 86 },
-    { label: 'Competition', value: 72 },
-    { label: 'Revenue Potential', value: 79 },
-    { label: 'Risk', value: 61 }
-  ],
-  strengths: ['Clear positioning', 'Early traction signals', 'Strong monetization path'],
-  weaknesses: ['Limited team bandwidth', 'High customer acquisition cost', 'Regulatory exposure'],
-  opportunities: ['Premium segment expansion', 'Strategic partnerships', 'Recurring service add-ons'],
-  threats: ['Market consolidation', 'Copycat entrants', 'Execution pacing']
-}
+const defaultMetrics = [
+  { label: 'Market Demand', value: 0 },
+  { label: 'Competition', value: 0 },
+  { label: 'Revenue Potential', value: 0 },
+  { label: 'Risk', value: 0 },
+]

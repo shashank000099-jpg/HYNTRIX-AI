@@ -1,19 +1,32 @@
 // ============================================
-// FUTURE AI SERVICE LAYER
+// AI SERVICE — DEPRECATED MOCK
 // ============================================
-// Prepare architecture for OpenAI, Gemini integrations
-// NOT integrated yet - only structural
+// This file previously contained placeholder implementations.
+// Now all AI generation goes through lib/ai/provider.ts
+//
+// The universal provider layer handles all AI generation:
+// - gemini-1.5-flash (primary)
+// - claude-3-5-sonnet (future fallback)
+// - gpt-4o (future fallback)
+//
+// Import from lib/ai/provider.ts for new code.
 
-export interface AIProviderConfig {
+export {
+  generateResponse,
+  isGeminiConfigured,
+  isProviderConfigured,
+  getActiveProviderName,
+  parseAIJSONResponse,
+  estimateAICost,
+} from '../ai/provider'
+
+export type { ProviderResponse, ProviderRequest } from '../ai/provider'
+
+// Legacy interface for backward compatibility
+export interface AICompletionRequest {
   provider: 'openai' | 'gemini' | 'anthropic'
   apiKey: string
   model: string
-  maxTokens: number
-  temperature: number
-}
-
-export interface AICompletionRequest {
-  provider: AIProviderConfig
   systemPrompt: string
   userPrompt: string
   temperature?: number
@@ -29,46 +42,3 @@ export interface AICompletionResponse {
   }
   provider: string
 }
-
-export class AIService {
-  private static instance: AIService
-
-  static getInstance(): AIService {
-    if (!AIService.instance) {
-      AIService.instance = new AIService()
-    }
-    return AIService.instance
-  }
-
-  async complete(request: AICompletionRequest): Promise<AICompletionResponse> {
-    // TODO: Implement provider routing
-    // Currently returns mock for development
-    // When integrated, route to OpenAI, Gemini, or Anthropic based on config
-    throw new Error('AI service not yet integrated. Configure API key in settings.')
-  }
-
-  // Placeholder for future provider-specific methods
-  private async openAIComplete(request: AICompletionRequest): Promise<AICompletionResponse> {
-    throw new Error('OpenAI integration coming soon')
-  }
-
-  private async geminiComplete(request: AICompletionRequest): Promise<AICompletionResponse> {
-    throw new Error('Gemini integration coming soon')
-  }
-
-  private async anthropicComplete(request: AICompletionRequest): Promise<AICompletionResponse> {
-    throw new Error('Anthropic integration coming soon')
-  }
-
-  // Rate limiting placeholder
-  private async checkRateLimit(userId: string): Promise<boolean> {
-    return true // TODO: Implement rate limiting
-  }
-
-  // Token counting placeholder
-  private countTokens(text: string): number {
-    return text.length // TODO: Implement proper token counting
-  }
-}
-
-export const aiService = AIService.getInstance()

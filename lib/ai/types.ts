@@ -2,12 +2,13 @@
 // UNIVERSAL AI ENGINE — CORE TYPE DEFINITIONS
 // ============================================
 // Supports ALL 36+ Hyntrix AI features
+// Provider-agnostic: Gemini (current), Claude (future), OpenAI (future)
 
 // ============================================
 // PROVIDER TYPES
 // ============================================
 
-export type AIProvider = 'claude' | 'gemini' | 'openai'
+export type AIProvider = 'gemini' | 'claude' | 'openai'
 
 export interface AIProviderConfig {
   provider: AIProvider
@@ -17,12 +18,44 @@ export interface AIProviderConfig {
   apiKey: string
 }
 
+export const DEFAULT_GEMINI_CONFIG: AIProviderConfig = {
+  provider: 'gemini',
+  model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+  maxTokens: 4096,
+  temperature: 0.7,
+  apiKey: process.env.GEMINI_API_KEY || '',
+}
+
 export const DEFAULT_CLAUDE_CONFIG: AIProviderConfig = {
   provider: 'claude',
-  model: 'claude-3-5-sonnet-20241022',
+  model: process.env.ANTHROPIC_MODEL || process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022',
   maxTokens: 4096,
   temperature: 0.7,
   apiKey: process.env.ANTHROPIC_API_KEY || '',
+}
+
+export const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig> = {
+  gemini: {
+    provider: 'gemini',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+    maxTokens: 4096,
+    temperature: 0.7,
+    apiKey: process.env.GEMINI_API_KEY || '',
+  },
+  claude: {
+    provider: 'claude',
+    model: 'claude-3-5-sonnet-20241022',
+    maxTokens: 4096,
+    temperature: 0.7,
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+  },
+  openai: {
+    provider: 'openai',
+    model: 'gpt-4o',
+    maxTokens: 4096,
+    temperature: 0.7,
+    apiKey: process.env.OPENAI_API_KEY || '',
+  },
 }
 
 // ============================================
@@ -185,6 +218,10 @@ export interface LeadResult {
   opportunitySummary: string
   outreachMessage: string
   decisionMakers?: { name: string; role: string; linkedin?: string }[]
+  buyingIntent?: 'High' | 'Medium' | 'Low'
+  estimatedBudget?: string
+  conversionProbability?: number
+  priority?: 'High' | 'Medium' | 'Low'
 }
 
 export interface ClientFinderReport {

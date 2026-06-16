@@ -1,7 +1,8 @@
 // ============================================
 // UNIVERSAL REPORT BUILDER
 // ============================================
-// Transforms Claude API responses into structured AIReport objects
+// Transforms AI provider responses into structured AIReport objects
+// Provider-agnostic — works with Gemini, Claude, OpenAI
 
 import type { AIReport, FeatureCategory, FeatureRegistryEntry } from './types'
 import { getFeatureByKey } from '../features/registry'
@@ -19,19 +20,20 @@ function generateId(): string {
 }
 
 /**
- * Build a complete AIReport from a parsed Claude response
+ * Build a complete AIReport from a parsed AI response
+ * Works with ANY provider (Gemini, Claude, OpenAI)
  */
 export function buildReport(params: {
   featureKey: string
   userId: string
   input: string
-  claudeResponse: Record<string, any>
+  aiResponse: Record<string, any>
   creditsUsed: number
 }): AIReport {
   const feature = getFeatureByKey(params.featureKey)
 
-  // Normalize scores - Claude may return them as an object or array
-  const scores = normalizeScores(params.claudeResponse.scores)
+  // Normalize scores - AI may return them as an object or array
+  const scores = normalizeScores(params.aiResponse.scores)
 
   const now = new Date().toISOString()
 
@@ -43,29 +45,29 @@ export function buildReport(params: {
     category: (feature?.category as FeatureCategory) || 'startup-intelligence',
     input: params.input,
     scores,
-    overallScore: params.claudeResponse.overallScore ?? calculateOverallScore(scores),
-    verdict: params.claudeResponse.verdict || 'Analysis complete.',
-    summary: params.claudeResponse.summary || generateDefaultSummary(scores, feature),
-    strengths: ensureArray(params.claudeResponse.strengths),
-    weaknesses: ensureArray(params.claudeResponse.weaknesses),
-    opportunities: ensureArray(params.claudeResponse.opportunities),
-    threats: ensureArray(params.claudeResponse.threats),
-    recommendations: ensureArray(params.claudeResponse.recommendations),
-    insights: ensureArray(params.claudeResponse.insights, [
+    overallScore: params.aiResponse.overallScore ?? calculateOverallScore(scores),
+    verdict: params.aiResponse.verdict || 'Analysis complete.',
+    summary: params.aiResponse.summary || generateDefaultSummary(scores, feature),
+    strengths: ensureArray(params.aiResponse.strengths),
+    weaknesses: ensureArray(params.aiResponse.weaknesses),
+    opportunities: ensureArray(params.aiResponse.opportunities),
+    threats: ensureArray(params.aiResponse.threats),
+    recommendations: ensureArray(params.aiResponse.recommendations),
+    insights: ensureArray(params.aiResponse.insights, [
       'Analysis based on provided inputs',
       'Recommendations are data-informed estimates',
       'Regular reassessment is recommended as conditions change',
     ]),
-    actionPlan: ensureArray(params.claudeResponse.actionPlan, [
+    actionPlan: ensureArray(params.aiResponse.actionPlan, [
       'Review all recommendations and prioritize by impact',
       'Create a timeline for implementing top priorities',
       'Track progress against the recommended milestones',
       'Reassess and adjust strategy as needed',
       'Scale successful approaches and iterate on others',
     ]),
-    riskLevel: validateRiskLevel(params.claudeResponse.riskLevel),
-    confidenceScore: params.claudeResponse.confidenceScore ?? 75,
-    metadata: extractMetadata(params.claudeResponse, feature),
+    riskLevel: validateRiskLevel(params.aiResponse.riskLevel),
+    confidenceScore: params.aiResponse.confidenceScore ?? 75,
+    metadata: extractMetadata(params.aiResponse, feature),
     creditsUsed: params.creditsUsed,
     createdAt: now,
     saved: false,
@@ -73,7 +75,7 @@ export function buildReport(params: {
 }
 
 /**
- * Normalize scores from various formats Claude might return
+ * Normalize scores from various formats the AI might return
  */
 function normalizeScores(scores: any): Record<string, number> {
   if (!scores || typeof scores !== 'object') {
@@ -143,7 +145,7 @@ function generateDefaultSummary(scores: Record<string, number>, feature?: Featur
 }
 
 /**
- * Extract additional metadata from Claude response
+ * Extract additional metadata from AI response
  */
 function extractMetadata(response: Record<string, any>, feature?: FeatureRegistryEntry): Record<string, any> {
   const metadata: Record<string, any> = {}

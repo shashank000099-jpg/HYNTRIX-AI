@@ -1,22 +1,18 @@
 // ============================================
-// UNIVERSAL AI GENERATION API
+// SOCIAL INTELLIGENCE API
 // ============================================
-// Single endpoint for ALL Hyntrix AI features
-// Provider-agnostic: routes through lib/ai/provider.ts
-// Architecture: Validate → Generate → Store → Deduct → Return
+// Pipeline: Platform Social Data → AI Analysis → Store Report → Deduct Credits
+// Uses social providers for profile data, then AI for analysis
+// Credits NEVER deducted before successful generation
 
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { getFeatureByKey, getFeatureCredits } from '../../../../lib/features/registry'
 import { getPromptTemplate } from '../../../../lib/ai/prompt-engine'
-import { generateResponse, parseAIJSONResponse, isGeminiConfigured, isProviderConfigured, getActiveProviderName } from '../../../../lib/ai/provider'
+import { generateResponse, parseAIJSONResponse, getActiveProviderName } from '../../../../lib/ai/provider'
 import { buildReport } from '../../../../lib/ai/report-builder'
-import type { AIGenerateRequest, AIGenerateResponse, AIReport } from '../../../../lib/ai/types'
-
-// ============================================
-// CREDIT SAFETY: Validate → Generate → Save → Deduct
-// Credits are NEVER deducted before successful generation
-// ============================================
+import { getSocialProvider, extractSocialIdentifier, getSocialPromptContext } from '../../../../lib/ai/social-providers'
+import type { AIGenerateRequest, AIGenerateResponse, AIReport, SocialPlatform } from '../../../../lib/ai/types'
 
 export async function POST(request: Request) {
   // ==========================================
@@ -28,18 +24,6 @@ export async function POST(request: Request) {
   if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.json(
       { success: false, error: 'Supabase not configured' },
-      { status: 500 }
-    )
-  }
-
-  // Check if any AI provider is configured
-  const hasAI = isGeminiConfigured() || isProviderConfigured('claude') || isProviderConfigured('openai')
-  if (!hasAI) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'AI provider not configured. Set GEMINI_API_KEY in your .env.local file. Get a free key at https://aistudio.google.com/apikey',
-      },
       { status: 500 }
     )
   }
@@ -70,7 +54,7 @@ export async function POST(request: Request) {
   const userId = session.user.id
 
   // ==========================================
-  // STEP 3: Parse and validate request
+  // STEP 3: Parse request
   // ==========================================
   const body: AIGenerateRequest = await request.json()
   const { featureKey, input, metadata } = body
@@ -82,18 +66,18 @@ export async function POST(request: Request) {
     )
   }
 
-  if (input.length < 3) {
-    return NextResponse.json(
-      { success: false, error: 'Input must be at least 3 characters' },
-      { status: 400 }
-    )
-  }
-
-  // Validate feature exists
+  // Validate feature exists and is a social feature
   const feature = getFeatureByKey(featureKey)
   if (!feature) {
     return NextResponse.json(
       { success: false, error: `Unknown feature: ${featureKey}` },
+      { status: 400 }
+    )
+  }
+
+  if (feature.category !== 'social-intelligence') {
+    return NextResponse.json(
+      { success: false, error: `Not a social feature: ${featureKey}` },
       { status: 400 }
     )
   }
@@ -110,7 +94,7 @@ export async function POST(request: Request) {
   const creditsRequired = getFeatureCredits(featureKey)
 
   // ==========================================
-  // STEP 4: Check credit balance (validate only, don't deduct yet)
+  // STEP 4: Check credits (validate only)
   // ==========================================
   const { data: wallet } = await supabase
     .from('credits')
@@ -133,17 +117,61 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
-  // STEP 5: Build AI prompt (provider-agnostic)
+  // STEP 5: Fetch social profile data
+  // ==========================================
+  const platform = feature.platform as SocialPlatform | undefined
+  let socialData = metadata?.socialData
+  let socialIdentifier = input
+
+  if (platform && !socialData) {
+    try {
+      const provider = getSocialProvider(platform)
+      socialIdentifier = extractSocialIdentifier(platform, input)
+      const profile = await provider.fetchProfile(socialIdentifier)
+      const posts = await provider.fetchRecentPosts(socialIdentifier, 10)
+      
+      socialData = {
+        profile,
+        posts,
+        platform,
+        platformUsername: profile.username,
+        // Enriched analysis context
+        followerCount: profile.followers,
+        engagementRate: profile.engagement,
+        growthRate: profile.growth,
+        postFrequency: profile.posts,
+        trustScore: profile.trustScore,
+      }
+    } catch (err) {
+      console.error(`Failed to fetch ${platform} data:`, err)
+      // Continue without social data - AI will analyze based on input alone
+    }
+  }
+
+  // ==========================================
+  // STEP 6: Build AI prompt with social context
   // ==========================================
   const userPrompt = promptTemplate.userPromptTemplate.replace('{input}', input)
-
-  // If social feature with metadata, enrich prompt
-  const enrichedPrompt = metadata?.socialData
-    ? `${userPrompt}\n\nSocial Profile Data:\n${JSON.stringify(metadata.socialData, null, 2)}`
-    : userPrompt
+  
+  // Enrich prompt with social profile data if available
+  let enrichedPrompt = userPrompt
+  if (socialData?.profile) {
+    const profileContext = getSocialPromptContext(
+      platform || 'instagram',
+      socialData.profile
+    )
+    enrichedPrompt = `${userPrompt}\n\n${profileContext}`
+    
+    if (socialData.posts && socialData.posts.length > 0) {
+      enrichedPrompt += `\nRecent Posts (${socialData.posts.length}):\n`
+      enrichedPrompt += socialData.posts.slice(0, 5).map((post: any, i: number) => 
+        `Post ${i + 1}: "${post.content}" (${post.likes} likes, ${post.comments} comments)`
+      ).join('\n')
+    }
+  }
 
   // ==========================================
-  // STEP 6: Generate AI response via universal provider (BEFORE deduction)
+  // STEP 7: Generate AI response (BEFORE deduction)
   // ==========================================
   let aiResponseText: string
   let inputTokens = 0
@@ -166,14 +194,14 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: `AI generation failed: ${err?.message || 'Unknown error'}. Your credits were NOT deducted.`,
+        error: `AI analysis failed: ${err?.message || 'Unknown error'}. Your credits were NOT deducted.`,
       },
       { status: 502 }
     )
   }
 
   // ==========================================
-  // STEP 7: Parse AI response
+  // STEP 8: Parse AI response
   // ==========================================
   let parsedResponse: Record<string, any>
   try {
@@ -189,8 +217,19 @@ export async function POST(request: Request) {
     )
   }
 
+  // Add social metadata to response
+  if (socialData) {
+    parsedResponse.socialData = {
+      platform,
+      username: socialIdentifier,
+      followers: socialData.followerCount,
+      engagement: socialData.engagementRate,
+      posts: socialData.postCount,
+    }
+  }
+
   // ==========================================
-  // STEP 8: Build report
+  // STEP 9: Build report
   // ==========================================
   const report = buildReport({
     featureKey,
@@ -201,9 +240,9 @@ export async function POST(request: Request) {
   })
 
   // ==========================================
-  // STEP 9: Save report to database (BEFORE deduction)
+  // STEP 10: Store report (BEFORE deduction)
   // ==========================================
-  const { data: storedReport, error: storeError } = await supabase
+  const { error: storeError } = await supabase
     .from('stored_reports')
     .insert({
       user_id: userId,
@@ -215,16 +254,13 @@ export async function POST(request: Request) {
       credits_used: creditsRequired,
       created_at: report.createdAt,
     })
-    .select()
-    .single()
 
   if (storeError) {
-    console.error('Failed to store report:', storeError)
-    // Non-fatal: report still generated, return it
+    console.error('Failed to store social report:', storeError)
   }
 
   // ==========================================
-  // STEP 10: DEDUCT CREDITS (AFTER successful generation + storage)
+  // STEP 11: Deduct credits (AFTER success)
   // ==========================================
   const walletData = wallet as { remaining: number; used: number } | null
   const walletBefore = walletData?.remaining ?? 0
@@ -239,8 +275,7 @@ export async function POST(request: Request) {
     .eq('user_id', userId)
 
   if (deductError) {
-    console.error('CRITICAL: Credit deduction failed after successful generation:', deductError)
-    // Report still generated, but log for admin investigation
+    console.error('CRITICAL: Credit deduction failed after successful social analysis:', deductError)
   }
 
   // Create transaction record
@@ -272,20 +307,26 @@ export async function POST(request: Request) {
         feature_type: feature.category,
         report_id: report.id,
         score: report.overallScore,
-        details: { creditsUsed: creditsRequired, inputTokens, outputTokens, provider: getActiveProviderName() },
+        details: { creditsUsed: creditsRequired, platform, socialIdentifier, provider: getActiveProviderName() },
       } as any)
   } catch (err) {
     console.error('History log error:', err)
   }
 
   // ==========================================
-  // STEP 11: Return success response
+  // STEP 12: Return success response
   // ==========================================
   return NextResponse.json({
     success: true,
     report,
     remainingCredits: walletAfter,
     creditsUsed: creditsRequired,
+    socialData: socialData ? {
+      platform,
+      username: socialIdentifier,
+      followers: socialData.followerCount,
+      engagement: socialData.engagementRate,
+    } : null,
     usage: { inputTokens, outputTokens },
     provider: getActiveProviderName(),
   })

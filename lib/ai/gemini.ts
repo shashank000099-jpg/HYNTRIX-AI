@@ -1,16 +1,17 @@
-export async function generateGeminiInsight(prompt: string) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not configured. Add GEMINI_API_KEY to your environment.');
-  }
+// ============================================
+// GEMINI 1.5 FLASH — PRIMARY AI PROVIDER
+// ============================================
+// This file re-exports from the universal provider layer.
+// All AI generation goes through lib/ai/provider.ts
+// ============================================
 
-  return {
-    source: 'gemini',
-    prompt,
-    summary: `Gemini placeholder analysis for: ${prompt}`,
-    insights: [
-      'Market fit signal appears strong.',
-      'Positioning needs sharper differentiation.',
-      'Recommended next step: validate customer demand with a small cohort.'
-    ]
-  };
-}
+export {
+  generateResponse,
+  isGeminiConfigured,
+  isProviderConfigured,
+  getActiveProviderName,
+  parseAIJSONResponse,
+  estimateAICost,
+} from './provider'
+
+export type { ProviderResponse, ProviderRequest } from './provider'

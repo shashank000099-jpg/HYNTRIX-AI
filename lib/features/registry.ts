@@ -217,7 +217,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
   },
 
   // ============================================
-  // SOCIAL INTELLIGENCE (10)
+  // SOCIAL INTELLIGENCE (12)
   // ============================================
   {
     key: 'instagram-analyzer',
@@ -230,6 +230,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'instagram',
     requiresExternalData: true,
     externalDataSource: ['apify-instagram-scraper'],
+    status: 'active',
   },
   {
     key: 'youtube-analyzer',
@@ -242,6 +243,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'youtube',
     requiresExternalData: true,
     externalDataSource: ['youtube-data-api-v3'],
+    status: 'active',
   },
   {
     key: 'x-analyzer',
@@ -254,18 +256,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'x',
     requiresExternalData: true,
     externalDataSource: ['apify-twitter-scraper'],
-  },
-  {
-    key: 'linkedin-analyzer',
-    title: 'LinkedIn Analyzer',
-    description: 'Measure brand presence, positioning and authority.',
-    category: CATEGORIES.social,
-    credits: 20,
-    promptTemplateKey: 'linkedinAnalyzer',
-    inputLabel: 'Enter a LinkedIn profile or company page',
-    platform: 'linkedin',
-    requiresExternalData: true,
-    externalDataSource: ['bright-data-linkedin'],
+    status: 'active',
   },
   {
     key: 'telegram-analyzer',
@@ -278,6 +269,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'telegram',
     requiresExternalData: true,
     externalDataSource: ['apify-telegram-scraper'],
+    status: 'active',
   },
   {
     key: 'instagram-judge',
@@ -290,6 +282,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'instagram',
     requiresExternalData: true,
     externalDataSource: ['apify-instagram-scraper'],
+    status: 'active',
   },
   {
     key: 'youtube-judge',
@@ -302,6 +295,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'youtube',
     requiresExternalData: true,
     externalDataSource: ['youtube-data-api-v3'],
+    status: 'active',
   },
   {
     key: 'telegram-judge',
@@ -314,18 +308,7 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'telegram',
     requiresExternalData: true,
     externalDataSource: ['apify-telegram-scraper'],
-  },
-  {
-    key: 'linkedin-judge',
-    title: 'LinkedIn Judge',
-    description: 'Professional brand and authority assessment.',
-    category: CATEGORIES.social,
-    credits: 20,
-    promptTemplateKey: 'linkedinJudge',
-    inputLabel: 'Enter a LinkedIn profile or company page',
-    platform: 'linkedin',
-    requiresExternalData: true,
-    externalDataSource: ['bright-data-linkedin'],
+    status: 'active',
   },
   {
     key: 'x-judge',
@@ -338,6 +321,59 @@ export const FEATURE_REGISTRY: FeatureRegistryEntry[] = [
     platform: 'x',
     requiresExternalData: true,
     externalDataSource: ['apify-twitter-scraper'],
+    status: 'active',
+  },
+  {
+    key: 'facebook-analyzer',
+    title: 'Facebook Intelligence',
+    description: 'Evaluate Facebook pages for audience quality, engagement and growth.',
+    category: CATEGORIES.social,
+    credits: 20,
+    promptTemplateKey: 'facebookAnalyzer',
+    inputLabel: 'Enter a Facebook page URL or name',
+    platform: 'facebook',
+    requiresExternalData: true,
+    externalDataSource: ['apify-facebook-scraper'],
+    status: 'active',
+  },
+  {
+    key: 'facebook-judge',
+    title: 'Facebook Judge',
+    description: 'Deep audit of Facebook brand presence, content strategy and monetization.',
+    category: CATEGORIES.social,
+    credits: 20,
+    promptTemplateKey: 'facebookJudge',
+    inputLabel: 'Enter a Facebook page URL or name',
+    platform: 'facebook',
+    requiresExternalData: true,
+    externalDataSource: ['apify-facebook-scraper'],
+    status: 'active',
+  },
+  {
+    key: 'linkedin-analyzer',
+    title: 'LinkedIn Intelligence',
+    description: 'Measure brand presence, positioning and authority. Coming soon.',
+    category: CATEGORIES.social,
+    credits: 20,
+    promptTemplateKey: 'linkedinAnalyzer',
+    inputLabel: 'Enter a LinkedIn profile or company page',
+    platform: 'linkedin',
+    requiresExternalData: true,
+    externalDataSource: ['bright-data-linkedin'],
+    status: 'coming_soon',
+  },
+  {
+    key: 'linkedin-judge',
+    title: 'LinkedIn Judge',
+    description: 'Professional brand and authority assessment. Coming soon.',
+    category: CATEGORIES.social,
+    credits: 20,
+    promptTemplateKey: 'linkedinJudge',
+    inputLabel: 'Enter a LinkedIn profile or company page',
+    platform: 'linkedin',
+    requiresExternalData: true,
+    externalDataSource: ['bright-data-linkedin'],
+    status: 'coming_soon',
   },
 
   // ============================================

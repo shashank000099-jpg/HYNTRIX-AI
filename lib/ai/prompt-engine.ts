@@ -182,7 +182,7 @@ const opportunityTemplates: PromptTemplateMap = {
 }
 
 // ============================================
-// SOCIAL INTELLIGENCE PROMPTS (10)
+// SOCIAL INTELLIGENCE PROMPTS (12)
 // ============================================
 
 const socialTemplates: PromptTemplateMap = {
@@ -210,6 +210,70 @@ const socialTemplates: PromptTemplateMap = {
     systemPrompt: `You are HYNTRIX AI's Telegram Channel Analyst — evaluate Telegram channels for community health, engagement authenticity, content quality, and growth potential. ${JSON_FORMAT_INSTRUCTION}`,
     userPromptTemplate: `Analyze this Telegram channel:\n\n{input}\n\nScore: Community Health, Content Quality, Engagement Authenticity, Growth Rate, Monetization Potential. Provide channel optimization and growth strategies.`,
     outputSchema: OUTPUT_SCHEMA,
+  },
+  facebookAnalyzer: {
+    systemPrompt: `You are HYNTRIX AI's Facebook Intelligence Analyst — evaluate Facebook pages for audience quality, engagement metrics, content performance, and monetization readiness. Provide detailed analysis with specific scores and actionable recommendations. ${JSON_FORMAT_INSTRUCTION}`,
+    userPromptTemplate: `Analyze this Facebook page:\n\n{input}\n\nProvide a comprehensive analysis including:
+- Executive Summary
+- Facebook Score (overall 0-100)
+- Audience Quality Score
+- Engagement Analysis
+- Content Performance
+- Growth Opportunities
+- Monetization Opportunities
+- Revenue Recommendations
+- 90-Day Growth Plan
+- Final Verdict
+
+Score each category 0-100 and provide specific, actionable recommendations for each section.`,
+    outputSchema: {
+      ...OUTPUT_SCHEMA,
+      properties: {
+        ...OUTPUT_SCHEMA.properties,
+        facebookScore: { type: 'number', description: 'Overall Facebook page score 0-100' },
+        audienceQualityScore: { type: 'number', description: 'Audience quality and targeting score 0-100' },
+        engagementAnalysis: { type: 'string', description: 'Detailed engagement analysis' },
+        contentPerformance: { type: 'string', description: 'Content performance evaluation' },
+        growthOpportunities: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities' },
+        monetizationOpportunities: { type: 'array', items: { type: 'string' }, description: 'Revenue opportunities' },
+        revenueRecommendations: { type: 'array', items: { type: 'string' }, description: 'Revenue recommendations' },
+        ninetyDayPlan: { type: 'array', items: { type: 'string' }, description: '90-day growth plan steps' },
+      },
+    },
+  },
+  facebookJudge: {
+    systemPrompt: `You are HYNTRIX AI's Facebook Judge — perform a deep, comprehensive audit of Facebook brand presence. Score every aspect of content strategy, audience engagement, visual identity, and monetization systems. ${JSON_FORMAT_INSTRUCTION}`,
+    userPromptTemplate: `Perform a deep audit of this Facebook presence:\n\n{input}\n\nProvide a complete audit including:
+- Executive Summary
+- Facebook Score (overall 0-100)
+- Brand Presence Score
+- Content Strategy Score
+- Audience Quality Score
+- Engagement Analysis
+- Content Performance Breakdown
+- Growth Opportunities
+- Monetization Readiness
+- Revenue Recommendations
+- 90-Day Transformation Plan
+- Final Verdict with Risk Level
+
+Score each category 0-100 and provide specific, actionable recommendations.`,
+    outputSchema: {
+      ...OUTPUT_SCHEMA,
+      properties: {
+        ...OUTPUT_SCHEMA.properties,
+        facebookScore: { type: 'number', description: 'Overall Facebook page score 0-100' },
+        brandPresenceScore: { type: 'number', description: 'Brand presence and consistency score 0-100' },
+        contentStrategyScore: { type: 'number', description: 'Content strategy effectiveness score 0-100' },
+        audienceQualityScore: { type: 'number', description: 'Audience quality and targeting score 0-100' },
+        engagementAnalysis: { type: 'string', description: 'Detailed engagement analysis' },
+        contentPerformance: { type: 'string', description: 'Content performance evaluation' },
+        growthOpportunities: { type: 'array', items: { type: 'string' }, description: 'Growth opportunities' },
+        monetizationReadiness: { type: 'string', description: 'Monetization readiness assessment' },
+        revenueRecommendations: { type: 'array', items: { type: 'string' }, description: 'Revenue recommendations' },
+        ninetyDayPlan: { type: 'array', items: { type: 'string' }, description: '90-day transformation plan' },
+      },
+    },
   },
   instagramJudge: {
     systemPrompt: `You are HYNTRIX AI's Instagram Judge — perform a deep, comprehensive audit of Instagram brands. Score every aspect of content strategy, visual identity, and growth systems. ${JSON_FORMAT_INSTRUCTION}`,
@@ -320,8 +384,9 @@ export function validatePromptTemplates(): string[] {
     'opportunity-finder', 'market-gap-scanner', 'trend-detector', 'niche-discovery',
     'opportunity-radar', 'side-hustle-finder', 'income-roadmap',
     'instagram-analyzer', 'youtube-analyzer', 'x-analyzer', 'linkedin-analyzer',
-    'telegram-analyzer', 'instagram-judge', 'youtube-judge', 'telegram-judge',
-    'linkedin-judge', 'x-judge',
+    'telegram-analyzer', 'facebook-analyzer',
+    'instagram-judge', 'youtube-judge', 'telegram-judge',
+    'linkedin-judge', 'x-judge', 'facebook-judge',
     'product-advisor', 'growth-advisor', 'finance-advisor', 'legal-advisor',
     'ai-client-finder',
   ]

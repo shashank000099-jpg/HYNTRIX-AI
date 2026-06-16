@@ -34,13 +34,16 @@ export const socialFeatures: FeatureDefinition[] = [
   { key: 'instagram-analyzer', title: 'Instagram Analyzer', description: 'Evaluate your profile for growth, content and trust signals.', category: 'social', inputLabel: 'Enter an Instagram handle or URL', platform: 'instagram' },
   { key: 'youtube-analyzer', title: 'YouTube Analyzer', description: 'Review growth signals and monetization fit for creators.', category: 'social', inputLabel: 'Enter a YouTube channel URL or handle', platform: 'youtube' },
   { key: 'x-analyzer', title: 'X Analyzer', description: 'Score your content and influence on X with precision.', category: 'social', inputLabel: 'Enter an X profile or URL', platform: 'x' },
-  { key: 'linkedin-analyzer', title: 'LinkedIn Analyzer', description: 'Measure brand presence, positioning and authority.', category: 'social', inputLabel: 'Enter a LinkedIn profile or company page', platform: 'linkedin' },
   { key: 'telegram-analyzer', title: 'Telegram Analyzer', description: 'Analyze engagement, trust and community health.', category: 'social', inputLabel: 'Enter a Telegram channel or group link', platform: 'telegram' },
+  { key: 'facebook-analyzer', title: 'Facebook Intelligence', description: 'Evaluate Facebook pages for audience quality, engagement and growth.', category: 'social', inputLabel: 'Enter a Facebook page URL or name', platform: 'facebook' },
   { key: 'instagram-judge', title: 'Instagram Judge', description: 'Deep audit of your Instagram brand and content strategy.', category: 'social', inputLabel: 'Enter an Instagram handle or URL', platform: 'instagram' },
   { key: 'youtube-judge', title: 'YouTube Judge', description: 'Full channel audit for growth and monetization readiness.', category: 'social', inputLabel: 'Enter a YouTube channel URL or handle', platform: 'youtube' },
   { key: 'telegram-judge', title: 'Telegram Judge', description: 'Community health and engagement deep dive.', category: 'social', inputLabel: 'Enter a Telegram channel or group link', platform: 'telegram' },
-  { key: 'linkedin-judge', title: 'LinkedIn Judge', description: 'Professional brand and authority assessment.', category: 'social', inputLabel: 'Enter a LinkedIn profile or company page', platform: 'linkedin' },
-  { key: 'x-judge', title: 'X Judge', description: 'Influence and content quality scoring for X.', category: 'social', inputLabel: 'Enter an X profile or URL', platform: 'x' }
+  { key: 'x-judge', title: 'X Judge', description: 'Influence and content quality scoring for X.', category: 'social', inputLabel: 'Enter an X profile or URL', platform: 'x' },
+  { key: 'facebook-judge', title: 'Facebook Judge', description: 'Deep audit of Facebook brand presence, content strategy and monetization.', category: 'social', inputLabel: 'Enter a Facebook page URL or name', platform: 'facebook' },
+  // LinkedIn features - kept for future
+  { key: 'linkedin-analyzer', title: 'LinkedIn Intelligence', description: 'Measure brand presence, positioning and authority. Coming soon.', category: 'social', inputLabel: 'Enter a LinkedIn profile or company page', platform: 'linkedin' },
+  { key: 'linkedin-judge', title: 'LinkedIn Judge', description: 'Professional brand and authority assessment. Coming soon.', category: 'social', inputLabel: 'Enter a LinkedIn profile or company page', platform: 'linkedin' },
 ]
 
 export const clientFinderFeatures: FeatureDefinition[] = [

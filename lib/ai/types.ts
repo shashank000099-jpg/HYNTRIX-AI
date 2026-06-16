@@ -86,6 +86,7 @@ export interface FeatureRegistryEntry {
   platform?: string
   requiresExternalData?: boolean
   externalDataSource?: string[]
+  status?: 'active' | 'coming_soon'
 }
 
 // ============================================

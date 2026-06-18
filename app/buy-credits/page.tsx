@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import { CREDIT_PACKS } from '../../lib/credits'
 import { Zap, ArrowLeft, Check, ShoppingCart, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import Script from 'next/script'
 
 // Razorpay types
 declare global {
@@ -23,6 +24,7 @@ export default function BuyCreditsPage() {
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null)
+  const [razorpayReady, setRazorpayReady] = useState(false)
 
   useEffect(() => {
     if (initialized && !user) {
@@ -41,108 +43,110 @@ export default function BuyCreditsPage() {
 
     const pack = CREDIT_PACKS.find(p => p.id === packId)
     if (!pack) {
+      console.error('[BuyCredits] Invalid pack:', packId)
       setPurchaseError('Invalid pack selected')
       setPurchasing(null)
       return
     }
 
-    // Try Razorpay if available
-    if (typeof window !== 'undefined' && window.Razorpay) {
-      try {
-        // Create order via API
-        const orderResponse = await fetch('/api/razorpay/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: pack.price,
-            currency: 'INR',
-            receipt: `credits_${pack.id}_${Date.now()}`,
-            notes: {
-              userId: user?.id,
-              credits: pack.credits.toString(),
-              packId: pack.id,
-            },
-          }),
-        })
+    if (!user?.id) {
+      console.error('[BuyCredits] No user ID')
+      setPurchaseError('Please login to purchase credits')
+      setPurchasing(null)
+      return
+    }
 
-        const orderData = await orderResponse.json()
+    console.log('[BuyCredits] Starting purchase:', { packId, pack, userId: user.id })
 
-        if (!orderResponse.ok) {
-          throw new Error(orderData.error || 'Failed to create order')
-        }
+    if (!razorpayReady || !window.Razorpay) {
+      console.error('[BuyCredits] Razorpay not ready')
+      setPurchaseError('Payment system not ready. Please wait a moment and try again.')
+      setPurchasing(null)
+      return
+    }
 
-        const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-          amount: pack.price * 100, // Razorpay expects paise
-          currency: 'INR',
-          name: 'HYNTRIX AI',
-          description: `${pack.credits} Credits`,
-          order_id: orderData.id,
-          prefill: {
-            email: user?.email,
-            contact: '',
-          },
-          handler: async function (response: any) {
-            // Verify payment
-            const verifyResponse = await fetch('/api/razorpay/verify', {
+    try {
+      console.log('[BuyCredits] Razorpay script ready')
+
+      // Create order via API
+      const orderPayload = {
+        amount: pack.price * 100, // paise
+        credits: pack.credits,
+        userId: user.id,
+      }
+      console.log('[BuyCredits] Creating order with payload:', orderPayload)
+
+      const orderResponse = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload),
+      })
+
+      console.log('[BuyCredits] Order response status:', orderResponse.status)
+      const orderData = await orderResponse.json()
+      console.log('[BuyCredits] Order response data:', orderData)
+
+      if (!orderResponse.ok || !orderData.success) {
+        throw new Error(orderData.error || 'Failed to create order')
+      }
+
+      const { order } = orderData
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Hyntrix AI',
+        description: `Purchase ${pack.credits} Credits`,
+        order_id: order.id,
+        handler: async (response: any) => {
+          try {
+            const verifyResponse = await fetch('/api/razorpay/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                userId: user?.id,
+                userId: user.id,
                 credits: pack.credits,
-                packId: pack.id,
               }),
             })
 
             const verifyData = await verifyResponse.json()
 
-            if (verifyData.success) {
+            if (verifyResponse.ok && verifyData.success) {
               setPurchaseSuccess(`Successfully purchased ${pack.credits} credits!`)
-              if (user?.id) fetchBalance(user.id)
+              fetchBalance(user.id)
             } else {
-              setPurchaseError('Payment verification failed. Please contact support.')
+              setPurchaseError(verifyData.error || 'Payment verification failed')
             }
+          } catch (err: any) {
+            setPurchaseError(err?.message || 'Payment verification failed')
+          } finally {
             setPurchasing(null)
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setPurchasing(null)
+            setPurchaseError('Payment cancelled')
           },
-          modal: {
-            ondismiss: function () {
-              setPurchasing(null)
-              setPurchaseError('Payment cancelled')
-            },
-          },
-        }
+        },
+        theme: {
+          color: '#3B82F6',
+        },
+      }
 
-        const razorpay = new window.Razorpay(options)
-        razorpay.open()
-      } catch (err: any) {
-        setPurchaseError(err?.message || 'Payment failed. Please try again.')
+      const razorpay = new window.Razorpay(options)
+      razorpay.open()
+
+      razorpay.on('payment.failed', (response: any) => {
         setPurchasing(null)
-      }
-    } else {
-      // No Razorpay - fallback: log purchase intent and show message
-      console.log('Purchase intent:', { packId, credits: pack.credits, price: pack.price })
-      setPurchaseSuccess(`Demo mode: ${pack.credits} credits selected. Amount: ${pack.priceLabel}. Razorpay SDK not loaded.`)
-      if (user?.id) {
-        // Add credits directly in demo/dev mode
-        try {
-          await fetch('/api/credits/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.id,
-              amount: pack.credits,
-              description: `Demo purchase: ${pack.label}`,
-            }),
-          })
-          fetchBalance(user.id)
-          setPurchaseSuccess(`✅ Demo: Added ${pack.credits} credits to your account!`)
-        } catch {
-          // Silently fail
-        }
-      }
+        setPurchaseError(response.error?.description || 'Payment failed')
+      })
+    } catch (err: any) {
+      setPurchaseError(err?.message || 'Payment failed. Please try again.')
       setPurchasing(null)
     }
   }
@@ -157,6 +161,19 @@ export default function BuyCreditsPage() {
 
   return (
     <div className="space-y-10">
+      {/* Load Razorpay SDK via next/script */}
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+        onLoad={() => {
+          console.log('[BuyCredits] Razorpay script loaded via next/script')
+          setRazorpayReady(true)
+        }}
+        onError={() => {
+          console.error('[BuyCredits] Failed to load Razorpay script')
+        }}
+      />
+
       <div>
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition mb-4">
           <ArrowLeft className="h-4 w-4" /> Back to Home
@@ -242,9 +259,9 @@ export default function BuyCreditsPage() {
                 </ul>
                 <button
                   onClick={() => handlePurchase(pack.id)}
-                  disabled={purchasing === pack.id}
+                  disabled={purchasing === pack.id || !razorpayReady}
                   className={`w-full py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 ${
-                    purchasing === pack.id
+                    purchasing === pack.id || !razorpayReady
                       ? 'bg-slate-600 text-slate-300 cursor-wait'
                       : 'popular' in pack && pack.popular
                         ? 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -255,6 +272,11 @@ export default function BuyCreditsPage() {
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       Processing...
+                    </>
+                  ) : !razorpayReady ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading Payment...
                     </>
                   ) : (
                     <>

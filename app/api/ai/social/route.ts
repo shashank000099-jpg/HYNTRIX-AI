@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
-  // STEP 5: Fetch social profile data
+  // STEP 5: Fetch social profile data via Apify
   // ==========================================
   const platform = feature.platform as SocialPlatform | undefined
   let socialData = metadata?.socialData
@@ -127,6 +127,12 @@ export async function POST(request: Request) {
     try {
       const provider = getSocialProvider(platform)
       socialIdentifier = extractSocialIdentifier(platform, input)
+      
+      // Log which Apify actor we're using
+      const { getPlatformConfig } = await import('../../../../lib/social/platform-config')
+      const platformConfig = getPlatformConfig(platform)
+      console.log(`[Social API] Fetching ${platform} data for "${socialIdentifier}" using Apify actor: ${platformConfig.actorId}`)
+      
       const profile = await provider.fetchProfile(socialIdentifier)
       const posts = await provider.fetchRecentPosts(socialIdentifier, 10)
       
@@ -135,16 +141,47 @@ export async function POST(request: Request) {
         posts,
         platform,
         platformUsername: profile.username,
-        // Enriched analysis context
         followerCount: profile.followers,
         engagementRate: profile.engagement,
         growthRate: profile.growth,
         postFrequency: profile.posts,
         trustScore: profile.trustScore,
       }
-    } catch (err) {
-      console.error(`Failed to fetch ${platform} data:`, err)
-      // Continue without social data - AI will analyze based on input alone
+      
+      console.log(`[Social API] Successfully fetched ${platform} data: ${profile.username} (${profile.followers} followers, ${posts.length} posts)`)
+    } catch (err: any) {
+      console.error(`[Social API] Failed to fetch ${platform} data:`, err?.message || err)
+      // IMPORTANT: Do NOT continue to Gemini with empty data
+      // Stop generation and return a clear error
+      return NextResponse.json(
+        {
+          success: false,
+          error: err?.message || `Unable to analyze this ${platform} profile. Please verify the URL or handle and try again.`,
+          platform,
+          socialIdentifier,
+        },
+        { status: 400 }
+      )
+    }
+  }
+
+  // Also verify we have actual data after successful fetch
+  if (socialData?.profile) {
+    const hasData = socialData.profile.followers > 0 || 
+                    socialData.profile.posts > 0 || 
+                    (socialData.posts && socialData.posts.length > 0)
+    
+    if (!hasData) {
+      console.error(`[Social API] Platform returned but data is empty for ${platform}`)
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Could not extract profile data from this ${platform} profile. The account may be private or restricted.`,
+          platform,
+          socialIdentifier,
+        },
+        { status: 400 }
+      )
     }
   }
 
@@ -164,9 +201,13 @@ export async function POST(request: Request) {
     
     if (socialData.posts && socialData.posts.length > 0) {
       enrichedPrompt += `\nRecent Posts (${socialData.posts.length}):\n`
-      enrichedPrompt += socialData.posts.slice(0, 5).map((post: any, i: number) => 
-        `Post ${i + 1}: "${post.content}" (${post.likes} likes, ${post.comments} comments)`
-      ).join('\n')
+      enrichedPrompt += socialData.posts.slice(0, 10).map((post: any, i: number) => {
+        const viewsStr = post.views ? `, ${post.views} views` : ''
+        const typeStr = post.type ? `[${post.type}] ` : ''
+        const hashStr = post.hashtags?.length ? ` | Hashtags: ${post.hashtags.join(', ')}` : ''
+        const mentStr = post.mentions?.length ? ` | Mentions: ${post.mentions.join(', ')}` : ''
+        return `Post ${i + 1}: ${typeStr}"${post.content}" (${post.likes} likes, ${post.comments} comments${viewsStr})${hashStr}${mentStr}`
+      }).join('\n')
     }
   }
 

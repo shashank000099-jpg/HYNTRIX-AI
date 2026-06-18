@@ -1,8 +1,9 @@
+import Razorpay from 'razorpay'
+import crypto from 'crypto'
+
 // ============================================
-// FUTURE PAYMENT SERVICE LAYER
+// PAYMENT SERVICE LAYER
 // ============================================
-// Prepare architecture for Razorpay integration
-// NOT integrated yet - only structural
 
 export interface PaymentProvider {
   provider: 'razorpay' | 'stripe'
@@ -58,6 +59,16 @@ export const SINGLE_REPORT = {
 
 export class PaymentService {
   private static instance: PaymentService
+  private razorpay: Razorpay | null = null
+
+  private constructor() {
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+      this.razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      })
+    }
+  }
 
   static getInstance(): PaymentService {
     if (!PaymentService.instance) {
@@ -67,18 +78,51 @@ export class PaymentService {
   }
 
   async createOrder(request: CreateOrderRequest): Promise<CreateOrderResponse> {
-    // TODO: Integrate Razorpay API
-    throw new Error('Payment integration coming soon. Configure Razorpay keys in settings.')
+    if (!this.razorpay) {
+      throw new Error('Razorpay keys not configured.')
+    }
+    const order = await this.razorpay.orders.create({
+      amount: Math.round(request.amount),
+      currency: request.currency,
+      receipt: request.receipt,
+      notes: request.notes,
+    })
+    
+    return {
+      id: order.id,
+      amount: typeof order.amount === 'number' ? order.amount : parseInt(order.amount as string, 10),
+      currency: order.currency,
+      receipt: order.receipt as string,
+      status: order.status
+    }
   }
 
   async verifyPayment(request: PaymentVerificationRequest): Promise<boolean> {
-    // TODO: Verify payment signature
-    throw new Error('Payment verification coming soon.')
+    const keySecret = process.env.RAZORPAY_KEY_SECRET
+    if (!keySecret) {
+      throw new Error('Razorpay secret not configured')
+    }
+
+    const generatedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(`${request.orderId}|${request.paymentId}`)
+      .digest('hex')
+
+    return crypto.timingSafeEqual(Buffer.from(generatedSignature), Buffer.from(request.signature))
   }
 
   async processRefund(paymentId: string, amount?: number): Promise<boolean> {
-    // TODO: Process refund via Razorpay
-    throw new Error('Refund processing coming soon.')
+    if (!this.razorpay) {
+      throw new Error('Razorpay keys not configured.')
+    }
+    
+    try {
+      await this.razorpay.payments.refund(paymentId, amount ? { amount: Math.round(amount) } : {})
+      return true
+    } catch (e) {
+      console.error('Refund failed:', e)
+      return false
+    }
   }
 
   /**

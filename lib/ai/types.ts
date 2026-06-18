@@ -173,17 +173,25 @@ export interface SocialProfileData {
   growth: number
   trustScore: number
   verified: boolean
+  externalWebsite?: string
+  businessCategory?: string
 }
 
 export interface SocialPostData {
   id: string
+  url?: string
+  type?: string
   content: string
   timestamp: string
   likes: number
   comments: number
   shares: number
+  views?: number
   engagement: number
   mediaUrls: string[]
+  thumbnailUrl?: string
+  hashtags?: string[]
+  mentions?: string[]
 }
 
 export interface SocialProviderInterface {

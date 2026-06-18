@@ -32,13 +32,12 @@ export async function POST(request: Request) {
     )
   }
 
-  // Check if any AI provider is configured
   const hasAI = isGeminiConfigured() || isProviderConfigured('claude') || isProviderConfigured('openai')
   if (!hasAI) {
     return NextResponse.json(
       {
         success: false,
-        error: 'AI provider not configured. Set GEMINI_API_KEY in your .env.local file. Get a free key at https://aistudio.google.com/apikey',
+        error: 'AI provider not configured. Set GEMINI_API_KEY in your .env.local file.',
       },
       { status: 500 }
     )
@@ -56,9 +55,6 @@ export async function POST(request: Request) {
     },
   })
 
-  // ==========================================
-  // STEP 2: Validate authentication
-  // ==========================================
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.user) {
     return NextResponse.json(
@@ -70,7 +66,7 @@ export async function POST(request: Request) {
   const userId = session.user.id
 
   // ==========================================
-  // STEP 3: Parse and validate request
+  // STEP 2: Parse and validate request
   // ==========================================
   const body: AIGenerateRequest = await request.json()
   const { featureKey, input, metadata } = body
@@ -89,7 +85,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // Validate feature exists
   const feature = getFeatureByKey(featureKey)
   if (!feature) {
     return NextResponse.json(
@@ -98,7 +93,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // Validate prompt template exists
   const promptTemplate = getPromptTemplate(featureKey)
   if (!promptTemplate) {
     return NextResponse.json(
@@ -110,7 +104,7 @@ export async function POST(request: Request) {
   const creditsRequired = getFeatureCredits(featureKey)
 
   // ==========================================
-  // STEP 4: Check credit balance (validate only, don't deduct yet)
+  // STEP 3: Check credit balance (validate only)
   // ==========================================
   const { data: wallet } = await supabase
     .from('credits')
@@ -133,17 +127,69 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
-  // STEP 5: Build AI prompt (provider-agnostic)
+  // STEP 4: Build prompt & fetch social data if needed
   // ==========================================
   const userPrompt = promptTemplate.userPromptTemplate.replace('{input}', input)
+  let enrichedPrompt = userPrompt
 
-  // If social feature with metadata, enrich prompt
-  const enrichedPrompt = metadata?.socialData
-    ? `${userPrompt}\n\nSocial Profile Data:\n${JSON.stringify(metadata.socialData, null, 2)}`
-    : userPrompt
+  if (feature.requiresExternalData && feature.platform) {
+    const socialPlatform = feature.platform as string
+    if (!metadata?.socialData) {
+      const { getPlatformConfig, isApifyConfigured } = await import('../../../../lib/social/platform-config')
+      const platformConfig = getPlatformConfig(socialPlatform as any)
+
+      if (platformConfig.actorId) {
+        if (isApifyConfigured()) {
+          try {
+            const { runApifyActor } = await import('../../../../lib/social/apify-client')
+            console.log(`[API] Fetching ${socialPlatform} data for "${input}" via ${platformConfig.actorId}`)
+
+            const apifyResult = await runApifyActor(socialPlatform as any, input, 10)
+
+            console.log(`[API] ${socialPlatform} OK: ${apifyResult.profile.username} (${apifyResult.profile.followers} followers, ${apifyResult.posts.length} posts)`)
+
+            enrichedPrompt += `\n\nSOCIAL PROFILE DATA:\n`
+            enrichedPrompt += `Username: ${apifyResult.profile.username}\n`
+            enrichedPrompt += `Display Name: ${apifyResult.profile.displayName || 'N/A'}\n`
+            enrichedPrompt += `Bio: ${apifyResult.profile.bio || 'N/A'}\n`
+            enrichedPrompt += `Followers: ${apifyResult.profile.followers.toLocaleString()}\n`
+            enrichedPrompt += `Following: ${apifyResult.profile.following.toLocaleString()}\n`
+            enrichedPrompt += `Posts: ${apifyResult.profile.posts}\n`
+            enrichedPrompt += `Verified: ${apifyResult.profile.verified ? 'Yes' : 'No'}\n`
+            enrichedPrompt += `Engagement Rate: ${apifyResult.profile.engagement.toFixed(1)}%\n`
+            enrichedPrompt += `Trust Score: ${apifyResult.profile.trustScore}/100\n`
+
+            if (apifyResult.posts.length > 0) {
+              enrichedPrompt += `\nRecent Posts:\n`
+              apifyResult.posts.slice(0, 10).forEach((post: any, i: number) => {
+                enrichedPrompt += `${i + 1}. "${post.content}" (${post.likes} likes, ${post.comments} comments)\n`
+              })
+            }
+          } catch (err: any) {
+            console.error(`[API] ${socialPlatform} fetch failed: ${err?.message}`)
+            return NextResponse.json({
+              success: false,
+              error: err?.message || `Unable to fetch ${feature.title} data. Please verify the username and try again.`,
+              platform: socialPlatform,
+            }, { status: 400 })
+          }
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: `Apify API key not configured. Set APIFY_API_KEY to use ${feature.title}.`,
+          }, { status: 500 })
+        }
+      } else {
+        console.log(`[API] ${socialPlatform} has no Apify actor — using text-only analysis`)
+        enrichedPrompt = `${userPrompt}\n\nNote: No external data source is connected for ${socialPlatform}. Analyze based on the username/handle provided.`
+      }
+    } else {
+      enrichedPrompt = `${userPrompt}\n\nSocial Profile Data:\n${JSON.stringify(metadata.socialData, null, 2)}`
+    }
+  }
 
   // ==========================================
-  // STEP 6: Generate AI response via universal provider (BEFORE deduction)
+  // STEP 5: Generate AI response (BEFORE deduction)
   // ==========================================
   let aiResponseText: string
   let inputTokens = 0
@@ -173,13 +219,13 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
-  // STEP 7: Parse AI response
+  // STEP 6: Parse AI response
   // ==========================================
   let parsedResponse: Record<string, any>
   try {
     parsedResponse = parseAIJSONResponse(aiResponseText)
   } catch (err) {
-    console.error('Failed to parse AI response:', aiResponseText)
+    console.error('Failed to parse AI response:', aiResponseText.slice(0, 200))
     return NextResponse.json(
       {
         success: false,
@@ -190,7 +236,7 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
-  // STEP 8: Build report
+  // STEP 7: Build report
   // ==========================================
   const report = buildReport({
     featureKey,
@@ -201,9 +247,9 @@ export async function POST(request: Request) {
   })
 
   // ==========================================
-  // STEP 9: Save report to database (BEFORE deduction)
+  // STEP 8: Save report (BEFORE deduction)
   // ==========================================
-  const { data: storedReport, error: storeError } = await supabase
+  const { error: storeError } = await supabase
     .from('stored_reports')
     .insert({
       user_id: userId,
@@ -215,16 +261,13 @@ export async function POST(request: Request) {
       credits_used: creditsRequired,
       created_at: report.createdAt,
     })
-    .select()
-    .single()
 
   if (storeError) {
     console.error('Failed to store report:', storeError)
-    // Non-fatal: report still generated, return it
   }
 
   // ==========================================
-  // STEP 10: DEDUCT CREDITS (AFTER successful generation + storage)
+  // STEP 9: DEDUCT CREDITS (AFTER success)
   // ==========================================
   const walletData = wallet as { remaining: number; used: number } | null
   const walletBefore = walletData?.remaining ?? 0
@@ -232,54 +275,44 @@ export async function POST(request: Request) {
 
   const { error: deductError } = await supabase
     .from('credits')
-    .update({
-      remaining: walletAfter,
-      used: (walletData?.used || 0) + creditsRequired,
-    } as any)
+    .update({ remaining: walletAfter, used: (walletData?.used || 0) + creditsRequired } as any)
     .eq('user_id', userId)
 
   if (deductError) {
     console.error('CRITICAL: Credit deduction failed after successful generation:', deductError)
-    // Report still generated, but log for admin investigation
   }
 
-  // Create transaction record
   try {
-    await supabase
-      .from('transactions')
-      .insert({
-        user_id: userId,
-        transaction_type: 'usage',
-        credits: creditsRequired,
-        balance_before: walletBefore,
-        balance_after: walletAfter,
-        description: `Used ${creditsRequired} credits for ${featureKey}`,
-        reference_type: 'feature',
-        reference_id: featureKey,
-      } as any)
+    await supabase.from('transactions').insert({
+      user_id: userId,
+      transaction_type: 'usage',
+      credits: creditsRequired,
+      balance_before: walletBefore,
+      balance_after: walletAfter,
+      description: `Used ${creditsRequired} credits for ${featureKey}`,
+      reference_type: 'feature',
+      reference_id: featureKey,
+    } as any)
   } catch (err) {
     console.error('Transaction record error:', err)
   }
 
-  // Log to history
   try {
-    await supabase
-      .from('history')
-      .insert({
-        user_id: userId,
-        action: `Generated ${feature.title} report`,
-        feature: featureKey,
-        feature_type: feature.category,
-        report_id: report.id,
-        score: report.overallScore,
-        details: { creditsUsed: creditsRequired, inputTokens, outputTokens, provider: getActiveProviderName() },
-      } as any)
+    await supabase.from('history').insert({
+      user_id: userId,
+      action: `Generated ${feature.title} report`,
+      feature: featureKey,
+      feature_type: feature.category,
+      report_id: report.id,
+      score: report.overallScore,
+      details: { creditsUsed: creditsRequired, inputTokens, outputTokens, provider: getActiveProviderName() },
+    } as any)
   } catch (err) {
     console.error('History log error:', err)
   }
 
   // ==========================================
-  // STEP 11: Return success response
+  // STEP 10: Return success
   // ==========================================
   return NextResponse.json({
     success: true,

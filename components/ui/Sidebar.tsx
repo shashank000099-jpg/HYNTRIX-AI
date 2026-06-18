@@ -37,8 +37,13 @@ export default function Sidebar() {
   useEffect(() => {
     async function fetchCredits() {
       if (!user?.id) return
-      const wallet = await getWallet(user.id)
-      setCredits(wallet.credits)
+      try {
+        const wallet = await getWallet(user.id)
+        setCredits(wallet.credits)
+      } catch {
+        // Silently handle auth/session errors - credit display will show 0
+        setCredits(0)
+      }
     }
     fetchCredits()
     const interval = setInterval(fetchCredits, 30000)

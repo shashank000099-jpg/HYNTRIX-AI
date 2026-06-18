@@ -9,6 +9,7 @@ export const config = {
 }
 
 const publicRoutes = ['/', '/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/callback', '/auth/verify']
+const publicPrefixes = ['/api/razorpay']
 const authOnlyRoutes = ['/auth/login', '/auth/signup']
 
 export async function middleware(req: NextRequest) {
@@ -55,8 +56,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/onboarding', req.url))
   }
 
-  // Allow public routes
-  if (publicRoutes.includes(pathname)) {
+  // Allow public routes and public prefixes
+  if (publicRoutes.includes(pathname) || publicPrefixes.some(prefix => pathname.startsWith(prefix))) {
     return res
   }
 

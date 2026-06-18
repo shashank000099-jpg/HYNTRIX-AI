@@ -7,7 +7,12 @@ import AuthProvider from '../components/AuthProvider';
 import { I18nProvider } from '../lib/i18n';
 import { SITE_NAME, SITE_URL, SITE_CONFIG } from '../lib/config';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+});
 
 export const metadata: Metadata = {
   title: {

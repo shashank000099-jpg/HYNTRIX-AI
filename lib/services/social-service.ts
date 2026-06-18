@@ -16,6 +16,7 @@ export interface SocialAPIConfig {
 
 export interface SocialProfileData {
   username: string
+  displayName?: string
   followers: number
   following: number
   posts: number
@@ -24,17 +25,25 @@ export interface SocialProfileData {
   avatar: string
   verified: boolean
   createdAt: string
+  externalWebsite?: string
+  businessCategory?: string
 }
 
 export interface SocialPostData {
   id: string
+  url?: string
+  type?: string
   content: string
   timestamp: string
   likes: number
   comments: number
   shares: number
+  views?: number
   engagement: number
   mediaUrls: string[]
+  thumbnailUrl?: string
+  hashtags?: string[]
+  mentions?: string[]
 }
 
 export interface SocialAnalysisResult {

@@ -25,12 +25,14 @@ export interface NormalizedSocialProfile {
   growthRate: number
   trustScore: number
   verified: boolean
+  businessCategory?: string
   scrapedAt: string
 }
 
 export interface NormalizedSocialPost {
   id: string
   url?: string
+  type?: string
   title?: string
   content: string
   publishedAt?: string
@@ -39,7 +41,9 @@ export interface NormalizedSocialPost {
   shares: number
   views: number
   mediaUrls: string[]
+  thumbnailUrl?: string
   hashtags: string[]
+  mentions: string[]
   engagementRate: number
 }
 
@@ -126,7 +130,7 @@ export async function getSocialData(
 export async function fetchApifyTaskStatus(taskId: string) {
   const token = getApifyToken()
   if (!token) {
-    throw new Error('Apify is not configured. Set APIFY_TOKEN in your environment.')
+    throw new Error('Apify is not configured. Set APIFY_API_KEY in your environment.')
   }
 
   const response = await fetch(`https://api.apify.com/v2/actor-tasks/${encodeURIComponent(taskId)}?token=${encodeURIComponent(token)}`)
@@ -146,7 +150,7 @@ export async function fetchApifyTaskStatus(taskId: string) {
 async function runApifyActor(actorId: string, input: RawRecord): Promise<RawRecord[]> {
   const token = getApifyToken()
   if (!token) {
-    throw new Error('Apify is not configured. Set APIFY_TOKEN in your environment.')
+    throw new Error('Apify is not configured. Set APIFY_API_KEY in your environment.')
   }
 
   const actorPath = actorId.replace('/', '~')
@@ -192,26 +196,21 @@ function buildActorInput(
     case 'instagram':
       return {
         directUrls: [target.url],
-        usernames: [target.username].filter(Boolean),
+        resultsType: 'details',
         resultsLimit: maxItems,
-        resultsType: 'posts',
-        addParentData: true,
+        addParentData: false,
       }
     case 'x':
       return {
-        startUrls,
-        searchTerms: target.username ? [`from:${target.username}`] : [target.url],
-        maxItems,
-        maxTweets: maxItems,
+        urls: [target.url],
         sort: 'Latest',
+        maxItems,
       }
     case 'telegram':
       return {
-        startUrls,
         channelUrls: [target.url],
-        channels: [target.username].filter(Boolean),
-        maxItems,
         limit: maxItems,
+        maxItems,
       }
   }
 }
@@ -247,15 +246,25 @@ function normalizeSocialData(params: {
     'user.following_count',
     'profile.following',
   ])
-  const totalViews = sumNumbers(params.rawItems, ['views', 'viewCount', 'videoViewCount', 'playCount', 'view_count'])
-  const posts = params.rawItems
+  let rawPosts = params.rawItems
+  if (params.platform === 'instagram') {
+    rawPosts = Array.isArray(profileItem.mediaPosts) ? profileItem.mediaPosts : []
+    if (rawPosts.length === 0) {
+      rawPosts = Array.isArray(profileItem.latestPosts) ? profileItem.latestPosts : []
+    }
+    const igtv = Array.isArray(profileItem.latestIgtvVideos) ? profileItem.latestIgtvVideos : []
+    rawPosts = [...rawPosts, ...igtv]
+  }
+
+  const posts = rawPosts
     .map((item, index) => normalizePost(item, followers, index))
     .filter((post) => post.content || post.title || post.url)
     .slice(0, params.maxItems)
 
+  const totalViews = posts.reduce((sum, post) => sum + post.views, 0)
   const totalEngagements = posts.reduce((sum, post) => sum + post.likes + post.comments + post.shares, 0)
   const averageEngagements = posts.length ? Math.round(totalEngagements / posts.length) : 0
-  const averageViews = posts.length ? Math.round(posts.reduce((sum, post) => sum + post.views, 0) / posts.length) : 0
+  const averageViews = posts.length ? Math.round(totalViews / posts.length) : 0
   const engagementRate = followers > 0 ? roundPercent((averageEngagements / followers) * 100) : 0
   const growthScore = calculateGrowthScore({ followers, posts: posts.length, engagementRate, averageViews })
   const trustScore = calculateTrustScore(profileItem, followers, engagementRate)
@@ -305,6 +314,7 @@ function normalizeSocialData(params: {
     growthRate: 0,
     trustScore,
     verified: pickBoolean(profileItem, ['verified', 'isVerified', 'is_blue_verified', 'isBlueVerified']),
+    businessCategory: pickString(profileItem, ['businessCategoryName', 'businessCategory', 'categoryName']),
     scrapedAt: new Date().toISOString(),
   }
 
@@ -337,10 +347,14 @@ function normalizePost(item: RawRecord, followers: number, index: number): Norma
   const shares = pickNumber(item, ['shares', 'shareCount', 'retweetCount', 'retweets', 'reposts', 'statistics.shareCount'])
   const views = pickNumber(item, ['views', 'viewCount', 'videoViewCount', 'playCount', 'statistics.viewCount'])
   const engagements = likes + comments + shares
+  
+  const mediaUrls = pickStringArray(item, ['mediaUrls', 'images', 'displayUrl', 'videoUrl'])
+  const thumbnailUrl = pickString(item, ['thumbnailUrl', 'displayUrl', 'images.0', 'mediaUrls.0']) || mediaUrls[0]
 
   return {
     id: pickString(item, ['id', 'postId', 'videoId', 'tweetId', 'shortCode', 'messageId']) || `post_${index + 1}`,
     url: pickString(item, ['url', 'postUrl', 'videoUrl', 'tweetUrl', 'link']),
+    type: pickString(item, ['type', 'postType', '__typename']),
     title: pickString(item, ['title', 'videoTitle', 'headline']),
     content: pickString(item, ['text', 'fullText', 'caption', 'description', 'message', 'content', 'title']) || '',
     publishedAt: normalizeDate(pickString(item, ['timestamp', 'createdAt', 'date', 'publishedAt', 'publishedTime', 'takenAt'])),
@@ -348,8 +362,10 @@ function normalizePost(item: RawRecord, followers: number, index: number): Norma
     comments,
     shares,
     views,
-    mediaUrls: pickStringArray(item, ['mediaUrls', 'images', 'displayUrl', 'thumbnailUrl', 'videoUrl']),
+    mediaUrls,
+    thumbnailUrl,
     hashtags: extractHashtags(item),
+    mentions: pickStringArray(item, ['mentions']),
     engagementRate: followers > 0 ? roundPercent((engagements / followers) * 100) : 0,
   }
 }
@@ -399,7 +415,7 @@ function getActorId(platform: ApifySocialPlatform): string {
 }
 
 function getApifyToken(): string {
-  return process.env.APIFY_TOKEN?.trim() || process.env.APIFY_API_KEY?.trim() || ''
+  return process.env.APIFY_API_KEY?.trim() || process.env.APIFY_TOKEN?.trim() || ''
 }
 
 function chooseProfileItem(items: RawRecord[]): RawRecord {

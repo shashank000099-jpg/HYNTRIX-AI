@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useAuthStore } from '../../lib/auth-store'
 import { useCreditsStore } from '../../lib/credits-store'
 import { supabaseClient } from '../../lib/supabase/client'
-import { User, Mail, Award, Zap, Shield, Save, TrendingUp, BarChart3, Bookmark } from 'lucide-react'
+import { User, Mail, Award, Zap, Shield, Save, TrendingUp, BarChart3, Bookmark, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
@@ -155,6 +155,24 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Credits & Billing */}
+      <Link href="/credits-billing" className="block">
+        <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 p-6 hover:bg-yellow-500/[0.08] transition">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                <CreditCard className="h-6 w-6 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">Credits & Billing</p>
+                <p className="text-xs text-slate-400">View transactions, credit history, and billing details</p>
+              </div>
+            </div>
+            <span className="text-yellow-400 text-sm">View →</span>
+          </div>
+        </div>
+      </Link>
 
       {/* Account Info */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-8">

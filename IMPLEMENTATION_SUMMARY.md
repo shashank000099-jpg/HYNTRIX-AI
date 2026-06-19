@@ -145,5 +145,4 @@ None — all tables already existed in `database/schema.sql`
 - Implement real Apify/API integrations in the social providers (currently has fallback estimation)
 - Add rate limiting
 - Add monitoring/observability
-- Complete payment integration (Razorpay setup)
 - Add comprehensive testing suite

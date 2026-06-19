@@ -2,7 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 
 const CREDIT_COSTS: Record<string, number> = {
-  // All features — 20 credits each
   'startup-judge': 20,
   'startup-roast': 20,
   'death-scanner': 20,
@@ -87,7 +86,6 @@ export async function POST(request: Request) {
 
   const currentRemaining = wallet?.remaining ?? 0
   const currentUsed = wallet?.used ?? 0
-  const currentTotal = currentRemaining + currentUsed
 
   if (currentRemaining < cost) {
     return NextResponse.json({
@@ -98,38 +96,33 @@ export async function POST(request: Request) {
     }, { status: 402 })
   }
 
-  // Deduct credits server-side
   const newRemaining = currentRemaining - cost
   const newUsed = currentUsed + cost
 
+  // Deduct credits server-side
   const { error: updateError } = await supabase
     .from('credits')
-    .update({
-      remaining: newRemaining,
-      used: newUsed,
-    })
+    .update({ remaining: newRemaining, used: newUsed })
     .eq('user_id', userId)
 
   if (updateError) {
     return NextResponse.json({ success: false, error: `Failed to deduct: ${updateError.message}` }, { status: 500 })
   }
 
-  // Create transaction record
-  const { error: txError } = await supabase
-    .from('transactions')
+  // Write to credit_history for usage tracking
+  const { error: historyError } = await supabase
+    .from('credit_history')
     .insert({
       user_id: userId,
-      transaction_type: 'usage',
-      credits: cost,
-      balance_before: currentRemaining,
-      balance_after: newRemaining,
+      type: 'usage',
+      credits: -cost,
       description: `Used ${cost} credits for ${feature}`,
-      reference_type: 'feature',
-      reference_id: feature,
+      feature_name: feature,
+      transaction_id: null,
     })
 
-  if (txError) {
-    console.error('Transaction record error:', txError)
+  if (historyError) {
+    console.error('[DeductCredits] credit_history insert error:', historyError)
   }
 
   return NextResponse.json({

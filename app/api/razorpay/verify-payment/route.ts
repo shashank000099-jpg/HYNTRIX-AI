@@ -1,11 +1,17 @@
 // ============================================
 // RAZORPAY VERIFY PAYMENT
 // ============================================
-// Verifies Razorpay payment signature and credits user
+// Verifies Razorpay payment signature, adds credits, and redirects
+// Uses HMAC-SHA256(order_id + "|" + payment_id, KEY_SECRET)
 
 import { NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
-import crypto from 'crypto'
+import { 
+  verifyRazorpaySignature, 
+  findTransactionByOrderId,
+  markTransactionSuccess,
+  addCreditsForPayment,
+  savePaymentEvent,
+} from '../../../../lib/services/billing-service'
 
 export async function POST(request: Request) {
   try {
@@ -14,147 +20,120 @@ export async function POST(request: Request) {
 
     // Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json(
-        { success: false, error: 'Missing payment verification fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: false,
+        error: 'Missing payment verification fields',
+        redirect: '/dashboard?payment=failed',
+      }, { status: 400 })
     }
 
     if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID required' },
-        { status: 400 }
-      )
+      return NextResponse.json({
+        success: false,
+        error: 'User ID is required',
+        redirect: '/dashboard?payment=failed',
+      }, { status: 400 })
+    }
+
+    // Save payment event for audit
+    await savePaymentEvent(
+      request,
+      'payment.verify_attempt',
+      { razorpay_order_id, razorpay_payment_id, userId, credits },
+      razorpay_order_id,
+      razorpay_payment_id
+    )
+
+    // Find the pending transaction
+    const transaction = await findTransactionByOrderId(request, razorpay_order_id)
+    if (!transaction) {
+      return NextResponse.json({
+        success: false,
+        error: 'Transaction not found',
+        redirect: '/dashboard?payment=failed',
+      }, { status: 400 })
+    }
+
+    // Check if already processed (idempotency)
+    if (transaction.status === 'success') {
+      // Already processed - return success
+      return NextResponse.json({
+        success: true,
+        message: 'Payment already verified',
+        creditsAdded: transaction.credits,
+        newBalance: null, // Will be fetched by frontend
+        redirect: '/dashboard?payment=success',
+      })
     }
 
     // Verify signature
-    const keySecret = process.env.RAZORPAY_KEY_SECRET
-    if (!keySecret) {
-      return NextResponse.json(
-        { success: false, error: 'Razorpay secret not configured' },
-        { status: 500 }
+    const signatureValid = verifyRazorpaySignature(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature
+    )
+
+    if (!signatureValid) {
+      await savePaymentEvent(
+        request,
+        'payment.verify_failed',
+        { razorpay_order_id, razorpay_payment_id, error: 'Signature mismatch' },
+        razorpay_order_id,
+        razorpay_payment_id
       )
+      return NextResponse.json({
+        success: false,
+        error: 'Payment verification failed. Invalid signature.',
+        redirect: '/dashboard?payment=failed',
+      }, { status: 400 })
     }
 
-    // Generate expected signature: HMAC-SHA256(order_id + "|" + payment_id, key_secret)
-    const generatedSignature = crypto
-      .createHmac('sha256', keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex')
-
-    // Compare signatures (constant-time comparison to prevent timing attacks)
-    if (!crypto.timingSafeEqual(Buffer.from(generatedSignature), Buffer.from(razorpay_signature))) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid payment signature' },
-        { status: 400 }
-      )
+    // Mark transaction as success
+    const marked = await markTransactionSuccess(request, razorpay_order_id, razorpay_payment_id)
+    if (!marked) {
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to update transaction',
+        redirect: '/dashboard?payment=failed',
+      }, { status: 500 })
     }
 
-    // Signature verified - now credit the user
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
+    // Add credits to user wallet (idempotent - checks for duplicate)
+    const creditsToAdd = typeof credits === 'number' && credits > 0 ? credits : transaction.credits
+    const creditsAdded = await addCreditsForPayment(request, userId, creditsToAdd, transaction.id)
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json(
-        { success: false, error: 'Database not configured' },
-        { status: 500 }
-      )
+    if (!creditsAdded) {
+      // Transaction is marked success but credits failed to add
+      // This is a critical error that needs manual review
+      console.error('[VerifyPayment] CRITICAL: Credits not added for successful payment:', {
+        transactionId: transaction.id,
+        userId,
+        creditsToAdd,
+      })
     }
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        getAll() {
-          return request.headers.get('cookie')?.split(';').map(c => {
-            const [name, value] = c.trim().split('=')
-            return { name, value }
-          }) || []
-        },
-        setAll() {},
-      },
-    })
-
-    // Get current credits
-    const { data: wallet, error: walletError } = await supabase
-      .from('credits')
-      .select('remaining, used')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (walletError) {
-      console.error('Wallet fetch error:', walletError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to fetch user wallet' },
-        { status: 500 }
-      )
-    }
-
-    const currentCredits = wallet?.remaining ?? 0
-    const creditsToAdd = credits || 20 // Default to 20 if not specified
-
-    // Update credits
-    const { error: updateError } = await supabase
-      .from('credits')
-      .update({
-        remaining: currentCredits + creditsToAdd,
-        used: (wallet?.used || 0),
-      } as any)
-      .eq('user_id', userId)
-
-    if (updateError) {
-      console.error('Credit update error:', updateError)
-      return NextResponse.json(
-        { success: false, error: 'Failed to update credits' },
-        { status: 500 }
-      )
-    }
-
-    // Record transaction
-    try {
-      await supabase.from('transactions').insert({
-        user_id: userId,
-        transaction_type: 'purchase',
-        credits: creditsToAdd,
-        balance_before: currentCredits,
-        balance_after: currentCredits + creditsToAdd,
-        description: `Purchased ${creditsToAdd} credits via Razorpay`,
-        reference_type: 'payment',
-        reference_id: razorpay_payment_id,
-      } as any)
-    } catch (err) {
-      console.error('Transaction record error:', err)
-    }
-
-    // Log to history
-    try {
-      await supabase.from('history').insert({
-        user_id: userId,
-        action: 'Purchased credits via Razorpay',
-        feature: 'payment',
-        feature_type: 'payment',
-        report_id: razorpay_payment_id,
-        score: null,
-        details: {
-          creditsAdded: creditsToAdd,
-          amount: null, // Could be fetched from order if needed
-          paymentId: razorpay_payment_id,
-          orderId: razorpay_order_id,
-        },
-      } as any)
-    } catch (err) {
-      console.error('History log error:', err)
-    }
+    // Save success event
+    await savePaymentEvent(
+      request,
+      'payment.verify_success',
+      { razorpay_order_id, razorpay_payment_id, userId, creditsAdded },
+      razorpay_order_id,
+      razorpay_payment_id
+    )
 
     return NextResponse.json({
       success: true,
       message: 'Payment verified and credits added',
       creditsAdded: creditsToAdd,
-      newBalance: currentCredits + creditsToAdd,
+      redirect: '/dashboard?payment=success',
     })
-  } catch (error: any) {
-    console.error('Payment verification error:', error)
-    return NextResponse.json(
-      { success: false, error: error.message || 'Payment verification failed' },
-      { status: 500 }
-    )
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Payment verification failed'
+    console.error('[VerifyPayment] Error:', message)
+    return NextResponse.json({
+      success: false,
+      error: message,
+      redirect: '/dashboard?payment=failed',
+    }, { status: 500 })
   }
 }

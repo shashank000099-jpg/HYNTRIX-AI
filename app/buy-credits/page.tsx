@@ -8,14 +8,6 @@ import { useEffect, useState } from 'react'
 import { CREDIT_PACKS } from '../../lib/credits'
 import { Zap, ArrowLeft, Check, ShoppingCart, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import Script from 'next/script'
-
-// Razorpay types
-declare global {
-  interface Window {
-    Razorpay?: any
-  }
-}
 
 export default function BuyCreditsPage() {
   const { user, initialized } = useAuthStore()
@@ -24,7 +16,6 @@ export default function BuyCreditsPage() {
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [purchaseError, setPurchaseError] = useState<string | null>(null)
   const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null)
-  const [razorpayReady, setRazorpayReady] = useState(false)
 
   useEffect(() => {
     if (initialized && !user) {
@@ -43,110 +34,137 @@ export default function BuyCreditsPage() {
 
     const pack = CREDIT_PACKS.find(p => p.id === packId)
     if (!pack) {
-      console.error('[BuyCredits] Invalid pack:', packId)
       setPurchaseError('Invalid pack selected')
       setPurchasing(null)
       return
     }
 
     if (!user?.id) {
-      console.error('[BuyCredits] No user ID')
       setPurchaseError('Please login to purchase credits')
       setPurchasing(null)
       return
     }
 
-    console.log('[BuyCredits] Starting purchase:', { packId, pack, userId: user.id })
+    // Create order via API
+    let orderResponse: Response
+    try {
+      orderResponse = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: pack.price * 100, // Convert to paise
+          credits: pack.credits,
+          userId: user.id,
+        }),
+      })
+    } catch {
+      setPurchaseError('Network error. Please check your connection and try again.')
+      setPurchasing(null)
+      return
+    }
 
-    if (!razorpayReady || !window.Razorpay) {
-      console.error('[BuyCredits] Razorpay not ready')
+    let orderData: any
+    try {
+      orderData = await orderResponse.json()
+    } catch {
+      setPurchaseError('Invalid response from payment server. Please try again.')
+      setPurchasing(null)
+      return
+    }
+
+    if (!orderResponse.ok || !orderData?.success || !orderData?.order) {
+      setPurchaseError(orderData?.error || 'Failed to create order')
+      setPurchasing(null)
+      return
+    }
+
+    const { order } = orderData
+
+    // Verify Razorpay SDK is loaded
+    if (typeof window.Razorpay === 'undefined') {
       setPurchaseError('Payment system not ready. Please wait a moment and try again.')
       setPurchasing(null)
       return
     }
 
-    try {
-      console.log('[BuyCredits] Razorpay script ready')
+    const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+    if (!keyId) {
+      setPurchaseError('Payment system is not configured. Please contact support.')
+      setPurchasing(null)
+      return
+    }
 
-      // Create order via API
-      const orderPayload = {
-        amount: pack.price * 100, // paise
-        credits: pack.credits,
-        userId: user.id,
-      }
-      console.log('[BuyCredits] Creating order with payload:', orderPayload)
+    const options: RazorpayOptions = {
+      key: keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: 'Hyntrix AI',
+      description: `Purchase ${pack.credits} Credits`,
+      order_id: order.id,
+      handler: async (response: RazorpayPaymentResponse) => {
+        try {
+          const verifyResponse = await fetch('/api/razorpay/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              userId: user.id,
+              credits: pack.credits,
+            }),
+          })
 
-      const orderResponse = await fetch('/api/razorpay/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderPayload),
-      })
+          const verifyData = await verifyResponse.json()
 
-      console.log('[BuyCredits] Order response status:', orderResponse.status)
-      const orderData = await orderResponse.json()
-      console.log('[BuyCredits] Order response data:', orderData)
-
-      if (!orderResponse.ok || !orderData.success) {
-        throw new Error(orderData.error || 'Failed to create order')
-      }
-
-      const { order } = orderData
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Hyntrix AI',
-        description: `Purchase ${pack.credits} Credits`,
-        order_id: order.id,
-        handler: async (response: any) => {
+          if (verifyResponse.ok && verifyData.success) {
+            setPurchaseSuccess(`Successfully purchased ${pack.credits} credits!`)
+            fetchBalance(user.id)
+            // Redirect to dashboard after short delay
+            setTimeout(() => {
+              router.push('/dashboard?payment=success')
+            }, 1500)
+          } else {
+            setPurchaseError(verifyData.error || 'Payment verification failed')
+            setPurchasing(null)
+          }
+        } catch {
+          setPurchaseError('Payment verification failed')
+          setPurchasing(null)
+        }
+      },
+      modal: {
+        ondismiss: async () => {
+          // When user closes the modal, cancel the order
           try {
-            const verifyResponse = await fetch('/api/razorpay/verify-payment', {
+            await fetch('/api/razorpay/cancel-order', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
+                order_id: order.id,
                 userId: user.id,
-                credits: pack.credits,
               }),
             })
-
-            const verifyData = await verifyResponse.json()
-
-            if (verifyResponse.ok && verifyData.success) {
-              setPurchaseSuccess(`Successfully purchased ${pack.credits} credits!`)
-              fetchBalance(user.id)
-            } else {
-              setPurchaseError(verifyData.error || 'Payment verification failed')
-            }
-          } catch (err: any) {
-            setPurchaseError(err?.message || 'Payment verification failed')
-          } finally {
-            setPurchasing(null)
-          }
+          } catch {}
+          setPurchasing(null)
+          router.push('/dashboard?payment=cancelled')
         },
-        modal: {
-          ondismiss: () => {
-            setPurchasing(null)
-            setPurchaseError('Payment cancelled')
-          },
-        },
-        theme: {
-          color: '#3B82F6',
-        },
-      }
+      },
+      theme: {
+        color: '#3B82F6',
+      },
+    }
 
+    try {
       const razorpay = new window.Razorpay(options)
       razorpay.open()
 
-      razorpay.on('payment.failed', (response: any) => {
+      razorpay.on('payment.failed', () => {
         setPurchasing(null)
-        setPurchaseError(response.error?.description || 'Payment failed')
+        setPurchaseError('Payment failed. Please try again.')
       })
-    } catch (err: any) {
-      setPurchaseError(err?.message || 'Payment failed. Please try again.')
+    } catch {
+      setPurchaseError('Payment failed. Please try again.')
       setPurchasing(null)
     }
   }
@@ -161,19 +179,6 @@ export default function BuyCreditsPage() {
 
   return (
     <div className="space-y-10">
-      {/* Load Razorpay SDK via next/script */}
-      <Script
-        src="https://checkout.razorpay.com/v1/checkout.js"
-        strategy="lazyOnload"
-        onLoad={() => {
-          console.log('[BuyCredits] Razorpay script loaded via next/script')
-          setRazorpayReady(true)
-        }}
-        onError={() => {
-          console.error('[BuyCredits] Failed to load Razorpay script')
-        }}
-      />
-
       <div>
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition mb-4">
           <ArrowLeft className="h-4 w-4" /> Back to Home
@@ -186,6 +191,7 @@ export default function BuyCreditsPage() {
       {purchaseSuccess && (
         <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-center">
           <p className="text-green-400 font-semibold">{purchaseSuccess}</p>
+          <p className="text-green-400/70 text-sm mt-1">Redirecting to dashboard...</p>
         </div>
       )}
       {purchaseError && (
@@ -217,78 +223,76 @@ export default function BuyCreditsPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-semibold text-white">Choose a Pack</h2>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {CREDIT_PACKS.map((pack, index) => (
-            <motion.div
-              key={pack.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="relative"
-            >
-              {'popular' in pack && pack.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                  <span className="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold">
-                    Most Popular
-                  </span>
-                </div>
-              )}
-              <div className={`rounded-2xl border ${'popular' in pack && pack.popular ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/10 bg-white/5'} p-6 h-full flex flex-col`}>
-                <div className="mb-4">
-                  <p className="text-sm uppercase tracking-[0.2em] text-slate-500">{pack.label}</p>
-                  <p className="text-4xl font-bold text-white mt-2">{pack.credits}</p>
-                  <p className="text-sm text-slate-400">Credits</p>
-                </div>
-                <div className="flex items-baseline gap-1 mb-6">
-                  <span className="text-3xl font-bold text-white">{pack.priceLabel}</span>
-                  {pack.credits > 20 && (
-                    <span className="text-sm text-slate-500">
-                      (₹{(pack.price / pack.credits).toFixed(1)}/credit)
+          {CREDIT_PACKS.map((pack, index) => {
+            const isPopular = 'popular' in pack && pack.popular
+            return (
+              <motion.div
+                key={pack.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="relative"
+              >
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <span className="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold">
+                      Most Popular
                     </span>
-                  )}
+                  </div>
+                )}
+                <div className={`rounded-2xl border ${isPopular ? 'border-blue-500/40 bg-blue-500/5' : 'border-white/10 bg-white/5'} p-6 h-full flex flex-col`}>
+                  <div className="mb-4">
+                    <p className="text-sm uppercase tracking-[0.2em] text-slate-500">{pack.label}</p>
+                    <p className="text-4xl font-bold text-white mt-2">{pack.credits}</p>
+                    <p className="text-sm text-slate-400">Credits</p>
+                  </div>
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-3xl font-bold text-white">{pack.priceLabel}</span>
+                    {pack.credits > 20 && (
+                      <span className="text-sm text-slate-500">
+                        (₹{(pack.price / pack.credits).toFixed(1)}/credit)
+                      </span>
+                    )}
+                  </div>
+                  <ul className="space-y-2 mb-6 flex-1">
+                    <li className="flex items-center gap-2 text-sm text-slate-300">
+                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> {pack.credits} credits for AI analysis
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-slate-300">
+                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> No expiry
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-slate-300">
+                      <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> Use on any feature
+                    </li>
+                  </ul>
+                  <button
+                    onClick={() => handlePurchase(pack.id)}
+                    disabled={!!purchasing}
+                    className={`w-full py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 ${
+                      purchasing
+                        ? 'bg-slate-600 text-slate-300 cursor-wait'
+                        : isPopular
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'border border-white/20 text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {purchasing === pack.id ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="h-4 w-4" />
+                        Buy {pack.credits} Credits
+                      </>
+                    )}
+                  </button>
+                  <p className="text-center text-xs text-slate-500 mt-2">Secure payment via Razorpay</p>
                 </div>
-                <ul className="space-y-2 mb-6 flex-1">
-                  <li className="flex items-center gap-2 text-sm text-slate-300">
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> {pack.credits} credits for AI analysis
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-slate-300">
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> No expiry
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-slate-300">
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" /> Use on any feature
-                  </li>
-                </ul>
-                <button
-                  onClick={() => handlePurchase(pack.id)}
-                  disabled={purchasing === pack.id || !razorpayReady}
-                  className={`w-full py-3 rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 ${
-                    purchasing === pack.id || !razorpayReady
-                      ? 'bg-slate-600 text-slate-300 cursor-wait'
-                      : 'popular' in pack && pack.popular
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                        : 'border border-white/20 text-white hover:bg-white/5'
-                  }`}
-                >
-                  {purchasing === pack.id ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : !razorpayReady ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading Payment...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="h-4 w-4" />
-                      Buy {pack.credits} Credits
-                    </>
-                  )}
-                </button>
-                <p className="text-center text-xs text-slate-500 mt-2">Secure payment via Razorpay</p>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            )
+          })}
         </div>
       </div>
 

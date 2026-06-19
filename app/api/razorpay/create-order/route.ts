@@ -2,36 +2,37 @@
 // RAZORPAY CREATE ORDER
 // ============================================
 // Creates a Razorpay order for credit purchase
+// Also creates a pending payment_transaction record
 
 import { NextResponse } from 'next/server'
 import Razorpay from 'razorpay'
+import { createPendingTransaction } from '../../../../lib/services/billing-service'
 
-// DEBUG: Log environment variables on module load
-console.log('[Razorpay] Module loaded')
-console.log('[Razorpay] KEY_ID exists:', !!process.env.RAZORPAY_KEY_ID)
-console.log('[Razorpay] KEY_SECRET exists:', !!process.env.RAZORPAY_KEY_SECRET)
-console.log('[Razorpay] KEY_ID value:', process.env.RAZORPAY_KEY_ID?.substring(0, 10) + '...')
-console.log('[Razorpay] KEY_SECRET length:', process.env.RAZORPAY_KEY_SECRET?.length)
+/**
+ * Get or create Razorpay instance lazily
+ * Prevents "key_id is mandatory" errors during build/compilation
+ */
+function getRazorpayInstance(): Razorpay {
+  const key_id = process.env.RAZORPAY_KEY_ID?.trim()
+  const key_secret = process.env.RAZORPAY_KEY_SECRET?.trim()
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-})
+  if (!key_id) {
+    throw new Error('Payment system is not configured. RAZORPAY_KEY_ID is missing.')
+  }
+  if (!key_secret) {
+    throw new Error('Payment system is not configured. RAZORPAY_KEY_SECRET is missing.')
+  }
 
-console.log('[Razorpay] Instance created')
+  return new Razorpay({ key_id, key_secret })
+}
 
 export async function POST(request: Request) {
-  console.log('[Razorpay] POST /api/razorpay/create-order called')
-  
   try {
     const body = await request.json()
     const { amount, credits, userId } = body
 
-    console.log('[Razorpay] Request body:', { amount, credits, userId })
-
     // Validate amount (minimum 100 paise = ₹1)
     if (!amount || amount < 100) {
-      console.error('[Razorpay] Validation failed: amount < 100')
       return NextResponse.json(
         { success: false, error: 'Minimum amount is ₹1 (100 paise)' },
         { status: 400 }
@@ -39,7 +40,6 @@ export async function POST(request: Request) {
     }
 
     if (!credits || credits < 1) {
-      console.error('[Razorpay] Validation failed: invalid credits')
       return NextResponse.json(
         { success: false, error: 'Invalid credit amount' },
         { status: 400 }
@@ -47,33 +47,22 @@ export async function POST(request: Request) {
     }
 
     if (!userId) {
-      console.error('[Razorpay] Validation failed: missing userId')
       return NextResponse.json(
-        { success: false, error: 'User ID required' },
+        { success: false, error: 'User ID is required' },
         { status: 400 }
       )
     }
 
-    console.log('[Razorpay] Creating order with Razorpay API...')
-    console.log('[Razorpay] Amount (paise):', Math.round(amount))
-    console.log('[Razorpay] Currency: INR')
-    
-    // Generate receipt with format: hx_${timestamp}
+    // Generate receipt
     let receipt = `hx_${Date.now()}`
-    console.log('[Razorpay] Receipt (before validation):', receipt)
-    console.log('[Razorpay] Receipt length (before validation):', receipt.length)
-    
-    // Ensure receipt never exceeds 40 characters
     if (receipt.length > 40) {
       receipt = receipt.slice(0, 40)
-      console.log('[Razorpay] Receipt truncated to 40 chars:', receipt)
     }
-    console.log('[Razorpay] Final Receipt:', receipt)
-    console.log('[Razorpay] Final Receipt length:', receipt.length)
 
-    // Create Razorpay order
+    // Create Razorpay instance and create order
+    const razorpay = getRazorpayInstance()
     const order = await razorpay.orders.create({
-      amount: Math.round(amount), // Ensure integer paise
+      amount: Math.round(amount),
       currency: 'INR',
       receipt: receipt,
       notes: {
@@ -83,8 +72,17 @@ export async function POST(request: Request) {
       },
     })
 
-    console.log('[Razorpay] Order created successfully:', order.id)
-    console.log('[Razorpay] Order details:', { id: order.id, amount: order.amount, currency: order.currency })
+    // Create pending transaction record in database
+    try {
+      await createPendingTransaction(request, userId, order.id, amount, credits)
+    } catch (dbError) {
+      // If we can't save the transaction, log the error but don't try to update order
+      console.error('[CreateOrder] Failed to create pending transaction:', dbError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to initialize payment. Please try again.' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
@@ -96,50 +94,26 @@ export async function POST(request: Request) {
       },
     })
   } catch (error: any) {
-    console.error('[Razorpay] ERROR in create-order:')
-    console.error('[Razorpay] Error type:', error.constructor.name)
-    console.error('[Razorpay] Error message:', error.message)
-    console.error('[Razorpay] Error status:', error.status || error.statusCode)
-    console.error('[Razorpay] Error code:', error.code)
-    console.error('[Razorpay] Full error:', JSON.stringify(error, null, 2))
-    
+    console.error('[CreateOrder] Error:', error.message)
+
     // Handle authentication errors
     if (error.status === 401 || error.statusCode === 401) {
-      console.error('[Razorpay] AUTHENTICATION FAILED - Check API keys')
       return NextResponse.json(
-        { success: false, error: 'Razorpay authentication failed. Check API keys.' },
+        { success: false, error: 'Payment system authentication failed.' },
         { status: 401 }
       )
     }
 
     // Handle network errors
     if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      console.error('[Razorpay] NETWORK ERROR - Cannot reach Razorpay API')
       return NextResponse.json(
-        { success: false, error: 'Cannot reach Razorpay API. Check network connection.' },
+        { success: false, error: 'Cannot reach payment gateway. Check your network.' },
         { status: 500 }
       )
     }
 
-    const errorResponse = {
-      success: false,
-      error: error.message || 'Failed to create order',
-      debug: {
-        errorType: error.constructor.name,
-        errorMessage: error.message,
-        errorStatus: error.status || error.statusCode,
-        errorCode: error.code,
-        errorDescription: error.description,
-        errorField: error.field,
-        razorpayError: error.error,
-        fullError: process.env.NODE_ENV === 'development' ? error : undefined,
-      }
-    }
-
-    console.error('[Razorpay] Returning error response:', JSON.stringify(errorResponse, null, 2))
-
     return NextResponse.json(
-      errorResponse,
+      { success: false, error: error.message || 'Failed to create order' },
       { status: 500 }
     )
   }

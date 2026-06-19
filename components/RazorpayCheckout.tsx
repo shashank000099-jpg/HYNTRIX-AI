@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 interface RazorpayCheckoutProps {
   amount: number // in paise
@@ -11,9 +11,6 @@ interface RazorpayCheckoutProps {
   buttonText?: string
   disabled?: boolean
 }
-
-// Razorpay is loaded dynamically from checkout script
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 
 export default function RazorpayCheckout({
   amount,
@@ -26,7 +23,7 @@ export default function RazorpayCheckout({
 }: RazorpayCheckoutProps) {
   const [loading, setLoading] = useState(false)
 
-  const loadRazorpayScript = (): Promise<void> => {
+  const loadRazorpayScript = useCallback((): Promise<void> => {
     return new Promise((resolve) => {
       if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
         resolve()
@@ -37,19 +34,33 @@ export default function RazorpayCheckout({
       script.src = 'https://checkout.razorpay.com/v1/checkout.js'
       script.async = true
       script.onload = () => resolve()
-      script.onerror = () => resolve() // Continue even if script fails to load
+      script.onerror = () => {
+        console.warn('[RazorpayCheckout] Failed to load Razorpay script from CDN, retrying...')
+        // Retry once
+        const retryScript = document.createElement('script')
+        retryScript.src = 'https://checkout.razorpay.com/v1/checkout.js'
+        retryScript.async = true
+        retryScript.onload = () => resolve()
+        retryScript.onerror = () => resolve() // Continue even if script fails
+        document.body.appendChild(retryScript)
+      }
       document.body.appendChild(script)
     })
-  }
+  }, [])
 
-  const handlePayment = async () => {
+  const handlePayment = useCallback(async () => {
     setLoading(true)
 
     try {
-      // Load Razorpay script
+      // Load Razorpay script if not already loaded
       await loadRazorpayScript()
 
-      // Create order
+      // Verify Razorpay is available
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error('Razorpay SDK failed to load. Please check your internet connection and try again.')
+      }
+
+      // Create order via backend API
       const orderResponse = await fetch('/api/razorpay/create-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,17 +79,23 @@ export default function RazorpayCheckout({
 
       const { order } = orderData
 
-      // Razorpay options
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+      // Validate key is available
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+      if (!keyId) {
+        throw new Error('Payment system is not configured. Please contact support.')
+      }
+
+      // Razorpay checkout options
+      const options: RazorpayOptions = {
+        key: keyId,
         amount: order.amount,
         currency: order.currency,
         name: 'Hyntrix AI',
         description: `Purchase ${credits} Credits`,
         order_id: order.id,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayPaymentResponse) => {
           try {
-            // Verify payment
+            // Verify payment signature via backend
             const verifyResponse = await fetch('/api/razorpay/verify-payment', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -98,8 +115,11 @@ export default function RazorpayCheckout({
             } else {
               throw new Error(verifyData.error || 'Payment verification failed')
             }
-          } catch (err: any) {
-            onError(err?.message || 'Payment verification failed')
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Payment verification failed'
+            onError(message)
+          } finally {
+            setLoading(false)
           }
         },
         prefill: {
@@ -122,16 +142,18 @@ export default function RazorpayCheckout({
       const razorpay = new window.Razorpay(options)
       razorpay.open()
 
-      // Handle payment failure
-      razorpay.on('payment.failed', (response: any) => {
+      // Handle payment failure event
+      razorpay.on('payment.failed', (response: RazorpayErrorResponse) => {
         setLoading(false)
-        onError(response.error?.description || 'Payment failed')
+        const errorDescription = response.error?.description || 'Payment failed'
+        onError(errorDescription)
       })
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoading(false)
-      onError(err?.message || 'Payment initialization failed')
+      const message = err instanceof Error ? err.message : 'Payment initialization failed'
+      onError(message)
     }
-  }
+  }, [amount, credits, userId, onSuccess, onError, loadRazorpayScript])
 
   return (
     <button

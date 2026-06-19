@@ -6,12 +6,20 @@ import { useState, useEffect } from 'react'
 import Card from '../../components/ui/Card'
 import CircularProgress from '../../components/charts/CircularProgress'
 import { useAuthStore } from '../../lib/auth-store'
+import { useCreditsStore } from '../../lib/credits-store'
 import { supabaseClient } from '../../lib/supabase/client'
+import { useSearchParams } from 'next/navigation'
+import { Zap, CreditCard } from 'lucide-react'
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
+  const { balance, fetchBalance } = useCreditsStore()
+  const searchParams = useSearchParams()
   const [recentReports, setRecentReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Handle payment redirect
+  const paymentStatus = searchParams.get('payment')
 
   useEffect(() => {
     async function fetchRecent() {
@@ -19,6 +27,9 @@ export default function DashboardPage() {
         setLoading(false)
         return
       }
+
+      await fetchBalance(user.id)
+
       try {
         const { data: saved } = await supabaseClient
           .from('saved_reports')
@@ -38,7 +49,7 @@ export default function DashboardPage() {
     }
 
     fetchRecent()
-  }, [user?.id])
+  }, [user?.id, fetchBalance])
 
   const metrics = [
     { label: 'Strategy', value: 82, color: 'text-blue-400' },
@@ -49,6 +60,23 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
+      {/* Payment Status Messages */}
+      {paymentStatus === 'success' && (
+        <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-4 text-center">
+          <p className="text-green-400 font-semibold">Payment successful! Credits have been added to your account.</p>
+        </div>
+      )}
+      {paymentStatus === 'failed' && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center">
+          <p className="text-red-400">Payment failed. Please try again.</p>
+        </div>
+      )}
+      {paymentStatus === 'cancelled' && (
+        <div className="rounded-2xl border border-yellow-500/20 bg-yellow-500/10 p-4 text-center">
+          <p className="text-yellow-400">Payment cancelled. No charges were made.</p>
+        </div>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="space-y-6">
           <div className="flex items-start justify-between gap-4">
@@ -85,15 +113,33 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Links */}
+      {/* Credits Card & Quick Links */}
       <div className="grid gap-6 xl:grid-cols-3">
+        {/* Credits Card */}
+        <Link href="/credits-billing" className="block">
+          <motion.div whileHover={{ y: -4 }} className="rounded-[2rem] border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 p-7 h-full">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-yellow-500/10 flex items-center justify-center">
+                <Zap className="h-5 w-5 text-yellow-400" />
+              </div>
+              <div>
+                <p className="text-sm uppercase tracking-[0.22em] text-yellow-400">Credits</p>
+                <p className="text-2xl font-bold text-white">{balance}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-blue-400">
+              <CreditCard className="h-4 w-4" />
+              View Billing →
+            </div>
+          </motion.div>
+        </Link>
+
         {[
           { title: 'Startup Intelligence', desc: 'Launch-ready reviews', icon: '🚀', href: '/startup-intelligence', color: 'from-blue-500/20 to-blue-600/10 border-blue-500/30' },
           { title: 'Social Intelligence', desc: 'Brand signal audits', icon: '📱', href: '/social-intelligence', color: 'from-pink-500/20 to-pink-600/10 border-pink-500/30' },
-          { title: 'Founder Hub', desc: 'Progress & gamification', icon: '🏆', href: '/founder-hub', color: 'from-purple-500/20 to-purple-600/10 border-purple-500/30' }
         ].map((section) => (
           <Link key={section.href} href={section.href as any}>
-            <motion.div whileHover={{ y: -4 }} className={`rounded-[2rem] border p-7 bg-gradient-to-br ${section.color}`}>
+            <motion.div whileHover={{ y: -4 }} className={`rounded-[2rem] border p-7 bg-gradient-to-br ${section.color} h-full`}>
               <span className="text-3xl">{section.icon}</span>
               <p className="mt-3 text-sm uppercase tracking-[0.22em] text-slate-500">{section.title}</p>
               <h3 className="mt-2 text-2xl font-semibold text-white">{section.desc}</h3>

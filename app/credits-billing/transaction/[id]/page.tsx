@@ -53,7 +53,7 @@ export default function TransactionDetailPage() {
     setLoading(true)
     try {
       const { data: tx } = await supabaseClient
-        .from('transactions')
+        .from('payments')
         .select('*')
         .eq('id', params.id)
         .eq('user_id', user.id)

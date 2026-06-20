@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
     if (!type || type === 'transactions' || type === 'both') {
       const { data: transactions, error: txError } = await supabase
-        .from('transactions')
+        .from('payments')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })

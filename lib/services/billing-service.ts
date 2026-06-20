@@ -7,7 +7,7 @@
 import { createServerClient } from '@supabase/ssr'
 import crypto from 'crypto'
 
-interface PaymentTransaction {
+interface Payment {
   id: string
   user_id: string
   order_id: string
@@ -17,6 +17,8 @@ interface PaymentTransaction {
   currency: string
   status: 'pending' | 'success' | 'failed' | 'cancelled' | 'refunded'
   error_message: string | null
+  receipt: string | null
+  notes: Record<string, any> | null
   created_at: string
   updated_at: string
 }
@@ -61,56 +63,65 @@ function createServiceClient(request: Request) {
 // ============================================
 
 /**
- * Create a pending payment transaction record
+ * Create a pending payment record in the payments table
  */
 export async function createPendingTransaction(
   request: Request,
   userId: string,
   orderId: string,
   amount: number,
-  credits: number
-): Promise<PaymentTransaction> {
+  credits: number,
+  receipt?: string,
+  notes?: Record<string, any>
+): Promise<Payment> {
   const supabase = createServiceClient(request)
 
   const { data, error } = await supabase
-    .from('transactions')
+    .from('payments')
     .insert({
       user_id: userId,
       order_id: orderId,
       payment_id: null,
       amount: amount,
       credits: credits,
-      status: 'pending',
       currency: 'INR',
+      status: 'pending',
+      receipt: receipt || null,
+      notes: notes || null,
     })
     .select()
     .single()
 
   if (error) {
-    console.error('[BillingService] Create pending transaction error:', error)
-    throw new Error(`Failed to create pending transaction: ${error.message}`)
+    console.error('[BillingService] Create pending payment error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    })
+    throw new Error(`Failed to create pending payment: ${error.message}`)
   }
 
   return data
 }
 
 /**
- * Find transaction by order ID
+ * Find payment by order ID
  */
 export async function findTransactionByOrderId(
   request: Request,
   orderId: string
-): Promise<PaymentTransaction | null> {
+): Promise<Payment | null> {
   const supabase = createServiceClient(request)
 
   const { data, error } = await supabase
-    .from('transactions')
+    .from('payments')
     .select('*')
     .eq('order_id', orderId)
     .maybeSingle()
 
   if (error) {
-    console.error('[BillingService] Find transaction error:', error)
+    console.error('[BillingService] Find payment error:', error)
     return null
   }
 
@@ -118,7 +129,7 @@ export async function findTransactionByOrderId(
 }
 
 /**
- * Update transaction status to success
+ * Update payment status to success
  */
 export async function markTransactionSuccess(
   request: Request,
@@ -128,7 +139,7 @@ export async function markTransactionSuccess(
   const supabase = createServiceClient(request)
 
   const { error } = await supabase
-    .from('transactions')
+    .from('payments')
     .update({
       status: 'success',
       payment_id: paymentId,
@@ -138,7 +149,7 @@ export async function markTransactionSuccess(
     .eq('status', 'pending')
 
   if (error) {
-    console.error('[BillingService] Mark transaction success error:', error)
+    console.error('[BillingService] Mark payment success error:', error)
     return false
   }
 
@@ -146,7 +157,7 @@ export async function markTransactionSuccess(
 }
 
 /**
- * Update transaction status to failed
+ * Update payment status to failed
  */
 export async function markTransactionFailed(
   request: Request,
@@ -156,7 +167,7 @@ export async function markTransactionFailed(
   const supabase = createServiceClient(request)
 
   const { error } = await supabase
-    .from('transactions')
+    .from('payments')
     .update({
       status: 'failed',
       error_message: errorMessage || null,
@@ -166,7 +177,7 @@ export async function markTransactionFailed(
     .eq('status', 'pending')
 
   if (error) {
-    console.error('[BillingService] Mark transaction failed error:', error)
+    console.error('[BillingService] Mark payment failed error:', error)
     return false
   }
 
@@ -174,7 +185,7 @@ export async function markTransactionFailed(
 }
 
 /**
- * Update transaction status to cancelled
+ * Update payment status to cancelled
  */
 export async function markTransactionCancelled(
   request: Request,
@@ -183,7 +194,7 @@ export async function markTransactionCancelled(
   const supabase = createServiceClient(request)
 
   const { error } = await supabase
-    .from('transactions')
+    .from('payments')
     .update({
       status: 'cancelled',
       updated_at: new Date().toISOString(),
@@ -192,7 +203,7 @@ export async function markTransactionCancelled(
     .eq('status', 'pending')
 
   if (error) {
-    console.error('[BillingService] Mark transaction cancelled error:', error)
+    console.error('[BillingService] Mark payment cancelled error:', error)
     return false
   }
 
@@ -200,16 +211,16 @@ export async function markTransactionCancelled(
 }
 
 /**
- * Get transaction by ID
+ * Get payment by ID
  */
 export async function getTransactionById(
   request: Request,
   transactionId: string
-): Promise<PaymentTransaction | null> {
+): Promise<Payment | null> {
   const supabase = createServiceClient(request)
 
   const { data, error } = await supabase
-    .from('transactions')
+    .from('payments')
     .select('*')
     .eq('id', transactionId)
     .maybeSingle()
@@ -493,4 +504,4 @@ export function verifyWebhookSignature(
 // QUERY HELPERS (for frontend use)
 // ============================================
 
-export type { PaymentTransaction, CreditHistoryEntry }
+export type { Payment, CreditHistoryEntry }

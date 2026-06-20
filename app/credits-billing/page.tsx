@@ -54,7 +54,7 @@ export default function CreditsBillingPage() {
     setLoading(true)
     try {
       const { data: txs } = await supabaseClient
-        .from('transactions')
+        .from('payments')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })

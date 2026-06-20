@@ -35,6 +35,18 @@ create index if not exists idx_payments_order_id_new on payments(order_id);
 create index if not exists idx_payments_payment_id on payments(payment_id);
 
 -- ============================================
+-- CRITICAL FIX: Status check constraint mismatch
+-- The runtime code uses status values: 'success', 'failed', 'cancelled'
+-- But the existing constraint only allows: 'pending', 'completed', 'failed', 'cancelled'
+-- This causes all status updates to silently fail because 'success' is not in the allowed list
+-- ============================================
+
+-- Drop the old constraint and replace with corrected one
+alter table payments drop constraint if exists payments_status_check;
+alter table payments add constraint payments_status_check 
+  check (status in ('pending', 'success', 'failed', 'cancelled', 'completed', 'refunded'));
+
+-- ============================================
 -- VERIFICATION (run after migration):
 -- select column_name, data_type from information_schema.columns
 -- where table_name = 'payments' order by ordinal_position;

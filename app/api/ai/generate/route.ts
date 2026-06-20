@@ -267,6 +267,33 @@ export async function POST(request: Request) {
   }
 
   // ==========================================
+  // STEP 8b: Also save to saved_reports for discoverability
+  // This is what the saved-reports page queries
+  // ==========================================
+  try {
+    const categoryMap: Record<string, string> = {
+      'startup-intelligence': 'startup',
+      'founder-intelligence': 'founder',
+      'social-intelligence': 'social',
+      'opportunity-hub': 'startup',
+      'board-room': 'founder',
+      'ai-client-finder': 'startup',
+    }
+    const reportType = categoryMap[feature.category] || 'startup'
+    
+    await supabase.from('saved_reports').insert({
+      user_id: userId,
+      report_type: reportType,
+      report_id: report.id,
+      title: feature.title,
+      subtitle: input.length > 100 ? input.slice(0, 100) + '...' : input,
+      score: report.overallScore,
+    })
+  } catch (err) {
+    console.error('Failed to save to saved_reports:', err)
+  }
+
+  // ==========================================
   // STEP 9: DEDUCT CREDITS (AFTER success)
   // ==========================================
   const walletData = wallet as { remaining: number; used: number } | null

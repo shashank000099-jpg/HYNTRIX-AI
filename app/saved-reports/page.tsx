@@ -166,56 +166,57 @@ export default function SavedReportsPage() {
             {filteredReports.map((report, index) => {
               const badge = getTypeBadge(report.report_type)
               return (
-                <motion.div
-                  key={report.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="group rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-all"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Bookmark className="h-3 w-3 text-slate-500" />
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${badge.color}`}>
-                          {badge.label}
-                        </span>
+                <Link key={report.id} href={'/saved-reports/report/' + report.report_id as any} className="block">
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="group rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Bookmark className="h-3 w-3 text-slate-500" />
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+                        <h3 className="text-base font-semibold text-white">
+                          {report.title || 'Untitled Report'}
+                        </h3>
+                        {report.subtitle && (
+                          <p className="text-xs text-slate-400">{report.subtitle}</p>
+                        )}
                       </div>
-                      <h3 className="text-base font-semibold text-white">
-                        {report.title || 'Untitled Report'}
-                      </h3>
-                      {report.subtitle && (
-                        <p className="text-xs text-slate-400">{report.subtitle}</p>
+                      {report.score != null && (
+                        <div className="rounded-xl bg-white/5 px-3 py-1 text-sm font-semibold text-white">
+                          {report.score}
+                        </div>
                       )}
                     </div>
-                    {report.score != null && (
-                      <div className="rounded-xl bg-white/5 px-3 py-1 text-sm font-semibold text-white">
-                        {report.score}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5">
-                    <p className="text-xs text-slate-500">
-                      {new Date(report.saved_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </p>
-                    <button
-                      onClick={() => handleDelete(report.id)}
-                      disabled={deleting === report.id}
-                      className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all disabled:opacity-50"
-                      title="Delete report"
-                    >
-                      {deleting === report.id ? (
-                        <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/5">
+                      <p className="text-xs text-slate-500">
+                        {new Date(report.saved_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
+                      <button
+                        onClick={(e) => { e.preventDefault(); handleDelete(report.id); }}
+                        disabled={deleting === report.id}
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-all disabled:opacity-50"
+                        title="Delete report"
+                      >
+                        {deleting === report.id ? (
+                          <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                </Link>
               )
             })}
           </div>

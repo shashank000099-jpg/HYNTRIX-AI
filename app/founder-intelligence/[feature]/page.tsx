@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { founderFeatures } from '../../../lib/features';
 import FeatureWorkspace from '../../../components/FeatureWorkspace';
+import FeatureEvaluationContext from '../../../components/FeatureEvaluationContext';
 import type { Metadata } from 'next';
 import { TOOLS_SEO } from '../../../lib/config';
 import { generateMetadata as seoMetadata } from '../../../lib/seo';
@@ -28,8 +29,9 @@ export default async function FounderFeaturePage({ params }: Props) {
   if (!feature) notFound();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <FeatureWorkspace title={feature.title} description={feature.description} inputLabel={feature.inputLabel} featureKey={resolved.feature} />
+      <FeatureEvaluationContext category="founder" featureKey={resolved.feature} featureTitle={feature.title} />
     </div>
   );
 }

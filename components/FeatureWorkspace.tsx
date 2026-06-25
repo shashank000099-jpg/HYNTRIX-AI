@@ -15,6 +15,9 @@ import type { FeatureType } from '../lib/credits'
 import { useAuthStore } from '../lib/auth-store'
 import { useCreditsStore } from '../lib/credits-store'
 import type { AIReport } from '../lib/ai/types'
+import { PremiumBadge, PremiumScoreCard, ReviewEligibilityCard } from './ui/PremiumBadge'
+import { getPerformanceTier, isEliteEligible, isRecognitionEligible } from '../lib/performance-tiers'
+import { Award, BarChart3, Crown, ShieldCheck, Sparkles, Trophy } from 'lucide-react'
 
 const workspaceSchema = z.object({
   query: z.string().min(3, 'Enter a valid prompt')
@@ -29,12 +32,48 @@ interface FeatureWorkspaceProps {
   featureKey: string
 }
 
+function getReportKind(report: AIReport): 'startup' | 'founder' | 'creator' | 'analysis' {
+  if (report.category === 'startup-intelligence') return 'startup'
+  if (report.category === 'founder-intelligence') return 'founder'
+  if (report.category === 'social-intelligence') return 'creator'
+  return 'analysis'
+}
+
+function getEstimatedRank(score: number): string {
+  if (score >= 95) return 'Top 1%'
+  if (score >= 90) return 'Top 5%'
+  if (score >= 85) return 'Top 10%'
+  if (score >= 75) return 'Top 25%'
+  if (score >= 60) return 'Rising pool'
+  return 'Developing pool'
+}
+
+function getOpportunityStatus(score: number): string {
+  if (score >= 95) return 'May be considered for exceptional review'
+  if (score >= 90) return 'May qualify for elite recognition'
+  if (score >= 85) return 'May be eligible for manual review'
+  if (score >= 75) return 'Strong improvement path identified'
+  return 'Needs stronger evidence before review'
+}
+
+function getMetadataList(report: AIReport, keys: string[]): string[] {
+  for (const key of keys) {
+    const value = report.metadata?.[key]
+    if (Array.isArray(value)) {
+      return value.filter((item): item is string => typeof item === 'string' && item.length > 0)
+    }
+    if (typeof value === 'string' && value.length > 0) {
+      return [value]
+    }
+  }
+  return []
+}
+
 export default function FeatureWorkspace({ title, description, inputLabel, featureKey }: FeatureWorkspaceProps) {
   const { user } = useAuthStore()
   const { fetchBalance } = useCreditsStore()
   const [report, setReport] = useState<AIReport | null>(null)
   const [loading, setLoading] = useState(false)
-  const [saved, setSaved] = useState(false)
   const [shared, setShared] = useState(false)
   const [generateCount, setGenerateCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -48,7 +87,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
   const handleGenerate = async () => {
     if (!user?.id) return
 
-    // Get the query from the form
     const query = form.getValues('query')
     if (!query || query.length < 3) {
       setError('Please enter at least 3 characters')
@@ -60,7 +98,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
     setReport(null)
 
     try {
-      // Step 1: Call the universal AI generation API
       const response = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,7 +126,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
         return
       }
 
-      // Step 2: Set the real AI report
       if (data.report) {
         setReport(data.report as AIReport)
         setRemainingCredits(data.remainingCredits)
@@ -99,7 +135,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
 
       setGenerateCount(prev => prev + 1)
 
-      // Step 3: Update credit balance in store
       if (user?.id) {
         fetchBalance(user.id)
       }
@@ -107,30 +142,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
       setError(err?.message || 'An error occurred. Your credits were NOT deducted.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleSave = async () => {
-    if (!user?.id || !report) return
-
-    try {
-      const { supabaseClient } = await import('../lib/supabase/client')
-      if (!supabaseClient) return
-
-      await supabaseClient.from('saved_reports').insert({
-        user_id: user.id,
-        report_type: report.featureKey.includes('startup') ? 'startup' : 
-                     report.featureKey.includes('founder') ? 'founder' : 'social',
-        report_id: report.id,
-        title: report.featureTitle,
-        subtitle: report.verdict,
-        score: report.overallScore,
-      } as any)
-
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err) {
-      console.error('Error saving report:', err)
     }
   }
 
@@ -143,7 +154,6 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
         url: window.location.href,
       })
     } catch {
-      // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(
           `${report.featureTitle} Report - HYNTRIX AI\n\n${report.verdict}\nScore: ${report.overallScore}/100\n\nView: ${window.location.href}`
@@ -160,11 +170,17 @@ export default function FeatureWorkspace({ title, description, inputLabel, featu
     if (!report || !user?.id) return
 
     try {
-      // Try to generate PDF content via print-friendly format
+      const tier = getPerformanceTier(report.overallScore)
       const printContent = `
 HYNTRIX AI - ${report.featureTitle} Report
 Date: ${new Date(report.createdAt).toLocaleDateString()}
 Score: ${report.overallScore}/100
+Performance Tier: ${tier.label}
+Confidence Level: ${report.confidenceScore}/100
+Estimated Rank: ${getEstimatedRank(report.overallScore)}
+Leaderboard Eligibility: ${isEliteEligible(report.overallScore) ? 'May qualify' : 'Not currently eligible'}
+Review Status: ${isRecognitionEligible(report.overallScore) ? 'May be reviewed' : 'Higher score needed for review'}
+Opportunity Status: ${getOpportunityStatus(report.overallScore)}
 Risk Level: ${report.riskLevel.toUpperCase()}
 
 VERDICT:
@@ -184,10 +200,9 @@ ${report.recommendations.map(r => `- ${r}`).join('\n')}
 ACTION PLAN:
 ${report.actionPlan.map((a, i) => `${i + 1}. ${a}`).join('\n')}
 
-Generated by HYNTRIX AI - AI Operating System for Founders
+Generated by HYNTRIX AI - Founder, Creator, Startup & Opportunity Discovery Ecosystem
       `.trim()
 
-      // Create a blob and download
       const blob = new Blob([printContent], { type: 'text/plain;charset=utf-8' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -196,12 +211,10 @@ Generated by HYNTRIX AI - AI Operating System for Founders
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      // Fallback: print
       window.print()
     }
   }
 
-  // Determine metrics from report scores
   const getScoreMetrics = () => {
     if (!report?.scores) return defaultMetrics
     return Object.entries(report.scores).map(([key, value]) => ({
@@ -209,6 +222,18 @@ Generated by HYNTRIX AI - AI Operating System for Founders
       value: typeof value === 'number' ? value : 0,
     }))
   }
+
+  const reportKind = report ? getReportKind(report) : 'analysis'
+  const reportTier = report ? getPerformanceTier(report.overallScore) : null
+  const reviewEligible = report ? isRecognitionEligible(report.overallScore) : false
+  const leaderboardEligible = report ? isEliteEligible(report.overallScore) : false
+  const blindSpots = report ? getMetadataList(report, ['blindSpots', 'blind_spots']) : []
+  const growthOpportunities = report
+    ? getMetadataList(report, ['growthOpportunities', 'growth_opportunities', 'creatorGrowthOpportunities'])
+    : []
+  const improvementRoadmap = report
+    ? getMetadataList(report, ['improvementRoadmap', 'improvement_roadmap', 'roadmap'])
+    : []
 
   return (
     <div className="space-y-8">
@@ -285,6 +310,108 @@ Generated by HYNTRIX AI - AI Operating System for Founders
             {report.confidenceScore ? ` · ${report.confidenceScore}/100 confidence` : ''}
           </p>
 
+          {reportTier && (
+            <div className="grid gap-4 xl:grid-cols-[1.1fr_1.4fr]">
+              <PremiumScoreCard
+                score={report.overallScore}
+                label={
+                  reportKind === 'startup'
+                    ? 'Final Startup Score'
+                    : reportKind === 'creator'
+                      ? 'Creator Score'
+                      : reportKind === 'founder'
+                        ? 'Founder Score'
+                        : 'Final Score'
+                }
+                subtitle={`Performance Tier: ${reportTier.label}`}
+              />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <ReviewEligibilityCard
+                  isEligible={reviewEligible}
+                  score={report.overallScore}
+                  tierName={reportTier.label}
+                />
+                <div className={`rounded-2xl border p-5 ${leaderboardEligible ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/10 bg-white/5'}`}>
+                  <div className="flex items-start gap-3">
+                    <Trophy className={`mt-0.5 h-5 w-5 ${leaderboardEligible ? 'text-amber-400' : 'text-slate-500'}`} />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {leaderboardEligible ? 'Leaderboard Eligible' : 'Leaderboard Status'}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        {leaderboardEligible
+                          ? `Score ${report.overallScore} may qualify for ranking visibility.`
+                          : 'Elite scores of 90+ may qualify for ranking visibility.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex items-start gap-3">
+                    <BarChart3 className="mt-0.5 h-5 w-5 text-blue-400" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {reportKind === 'startup' ? 'Startup Rank' : reportKind === 'creator' ? 'Creator Rank' : 'Estimated Rank'}
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        {getEstimatedRank(report.overallScore)} based on calibrated tier thresholds.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="mt-0.5 h-5 w-5 text-purple-400" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">Opportunity Status</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-400">
+                        {getOpportunityStatus(report.overallScore)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {reportTier && (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Confidence Level</p>
+                    <p className="mt-1 text-2xl font-bold text-white">{report.confidenceScore}/100</p>
+                    <p className="mt-1 text-xs text-slate-500">AI confidence in available evidence</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-start gap-3">
+                  <Award className="mt-0.5 h-5 w-5 text-yellow-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Recognition Status</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                      {reviewEligible ? 'May be reviewed for recognition.' : 'Not currently eligible for recognition review.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex items-start gap-3">
+                  <Crown className="mt-0.5 h-5 w-5 text-rose-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">Performance Tier</p>
+                    <div className="mt-2">
+                      <PremiumBadge score={report.overallScore} pulse={reviewEligible} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Verdict & Summary */}
           <Card>
             <div className="grid gap-6 lg:grid-cols-2">
@@ -338,7 +465,7 @@ Generated by HYNTRIX AI - AI Operating System for Founders
                 </ul>
               </div>
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Threats</p>
+                <p className="text-sm uppercase tracking-[0.22em] text-slate-500">Risks</p>
                 <ul className="mt-4 space-y-2 text-sm text-slate-300">
                   {report.threats.map((item: string) => (
                     <li key={item}>• {item}</li>
@@ -355,6 +482,43 @@ Generated by HYNTRIX AI - AI Operating System for Founders
               </div>
             </div>
           </Card>
+
+          {(blindSpots.length > 0 || growthOpportunities.length > 0 || improvementRoadmap.length > 0) && (
+            <Card>
+              <div className="grid gap-6 lg:grid-cols-3">
+                {blindSpots.length > 0 && (
+                  <div className="rounded-3xl border border-red-500/10 bg-red-500/5 p-5">
+                    <p className="text-sm uppercase tracking-[0.22em] text-red-300/80">Blind Spots</p>
+                    <ul className="mt-4 space-y-2 text-sm text-slate-300">
+                      {blindSpots.map((item: string) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {growthOpportunities.length > 0 && (
+                  <div className="rounded-3xl border border-emerald-500/10 bg-emerald-500/5 p-5">
+                    <p className="text-sm uppercase tracking-[0.22em] text-emerald-300/80">Growth Opportunities</p>
+                    <ul className="mt-4 space-y-2 text-sm text-slate-300">
+                      {growthOpportunities.map((item: string) => (
+                        <li key={item}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {improvementRoadmap.length > 0 && (
+                  <div className="rounded-3xl border border-blue-500/10 bg-blue-500/5 p-5">
+                    <p className="text-sm uppercase tracking-[0.22em] text-blue-300/80">Improvement Roadmap</p>
+                    <ol className="mt-4 space-y-2 text-sm text-slate-300 list-decimal pl-5">
+                      {improvementRoadmap.map((item: string) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Insights */}
           {report.insights && report.insights.length > 0 && (
@@ -391,11 +555,29 @@ Generated by HYNTRIX AI - AI Operating System for Founders
             </Card>
           )}
 
+          {reportTier && (
+            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.07] via-white/[0.03] to-transparent p-6 text-center">
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Shareable Ranking Card</p>
+              <div className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <span className={`text-5xl font-bold tracking-tight ${reportTier.color}`}>{report.overallScore}</span>
+                <div className="text-center sm:text-left">
+                  <p className="text-lg font-semibold text-white">{reportTier.label}</p>
+                  <p className="text-xs text-slate-500">
+                    {getEstimatedRank(report.overallScore)} · {getOpportunityStatus(report.overallScore)}
+                  </p>
+                </div>
+                <PremiumBadge score={report.overallScore} size="lg" pulse={reviewEligible} />
+              </div>
+              <p className="mx-auto mt-4 max-w-2xl text-xs leading-6 text-slate-500">
+                Generated by HyntrixAI, a Founder, Creator, Startup, and Opportunity Discovery Ecosystem. Recognition, reviews, rankings, and future programs are not guaranteed.
+              </p>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex flex-wrap gap-3">
-            <Button onClick={handleSave}>{saved ? '✓ Saved!' : 'Save Report'}</Button>
             <Button variant="secondary" onClick={handleShare}>{shared ? '✓ Shared!' : 'Share Report'}</Button>
-            <Button variant="ghost" onClick={handleDownloadPDF}>Download PDF</Button>
+            <Button variant="ghost" onClick={handleDownloadPDF}>Download Report</Button>
           </div>
         </motion.div>
       ) : null}

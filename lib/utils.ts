@@ -73,16 +73,6 @@ export async function deductCredits(userId: string, amount: number, featureName:
       })
       .eq('user_id', userId)
 
-    // Log to history
-    await supabaseClient
-      .from('history')
-      .insert({
-        user_id: userId,
-        action: `Used ${amount} credits for ${featureName}`,
-        feature: featureName,
-        details: { credits_used: amount }
-      })
-
     return true
   } catch (err) {
     console.error('Error deducting credits:', err)
@@ -117,57 +107,6 @@ export async function addXP(userId: string, xpAmount: number): Promise<void> {
       .eq('id', userId)
   } catch (err) {
     console.error('Error adding XP:', err)
-  }
-}
-
-/**
- * Save a report to user's library
- */
-export async function saveReport(
-  userId: string,
-  reportType: 'startup' | 'founder' | 'social',
-  reportId: string
-): Promise<boolean> {
-  if (!supabaseClient) return false
-
-  try {
-    await supabaseClient
-      .from('saved_reports')
-      .insert({
-        user_id: userId,
-        report_type: reportType,
-        report_id: reportId
-      })
-
-    return true
-  } catch (err) {
-    console.error('Error saving report:', err)
-    return false
-  }
-}
-
-/**
- * Log user action to history
- */
-export async function logAction(
-  userId: string,
-  action: string,
-  feature: string,
-  details?: Record<string, any>
-): Promise<void> {
-  if (!supabaseClient) return
-
-  try {
-    await supabaseClient
-      .from('history')
-      .insert({
-        user_id: userId,
-        action,
-        feature,
-        details
-      })
-  } catch (err) {
-    console.error('Error logging action:', err)
   }
 }
 

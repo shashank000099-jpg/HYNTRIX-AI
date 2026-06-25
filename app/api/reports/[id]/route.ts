@@ -68,8 +68,7 @@ export async function GET(
       })
     }
 
-    // If not found in stored_reports, check if the report_id in saved_reports
-    // references a report in stored_reports by the generated ID
+    // Fallback: check saved_reports table (report_id = client-generated UUID)
     const { data: savedReport } = await supabase
       .from('saved_reports')
       .select('report_id, report_type')
@@ -78,6 +77,7 @@ export async function GET(
       .maybeSingle()
 
     if (savedReport?.report_id) {
+      // Try 1: stored_reports.id == savedReport.report_id (new reports after fix)
       const { data: linkedReport } = await supabase
         .from('stored_reports')
         .select('*')
@@ -85,6 +85,7 @@ export async function GET(
         .maybeSingle()
 
       if (linkedReport) {
+        console.log('[ReportAPI] Found via stored_reports.id match')
         return NextResponse.json({
           success: true,
           source: 'stored_reports_via_saved',
@@ -100,9 +101,36 @@ export async function GET(
           },
         })
       }
+
+      // Try 2: report.jsonb->>id == savedReport.report_id (old reports before fix)
+      const { data: linkedReportByJson } = await supabase
+        .from('stored_reports')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .filter('report->>id', 'eq', savedReport.report_id)
+        .maybeSingle()
+
+      if (linkedReportByJson) {
+        console.log('[ReportAPI] Found via report->>id JSONB match (backward compat)')
+        return NextResponse.json({
+          success: true,
+          source: 'stored_reports_via_json',
+          report: linkedReportByJson.report,
+          metadata: {
+            id: linkedReportByJson.id,
+            feature_key: linkedReportByJson.feature_key,
+            feature_title: linkedReportByJson.feature_title,
+            category: linkedReportByJson.category,
+            input: linkedReportByJson.input,
+            credits_used: linkedReportByJson.credits_used,
+            created_at: linkedReportByJson.created_at,
+          },
+        })
+      }
     }
 
     // Not found
+    console.log('[ReportAPI] Report not found:', { reportId, userId: session.user.id })
     return NextResponse.json(
       { success: false, error: 'Report not found' },
       { status: 404 }

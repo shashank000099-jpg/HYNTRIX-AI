@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { LayoutDashboard, Rocket, Star, Users, FileText, Settings, MessageCircle, LogOut, Zap, Bookmark } from 'lucide-react'
+import { LayoutDashboard, Rocket, Star, Users, Settings, MessageCircle, LogOut, Zap, Trophy } from 'lucide-react'
 import { useAuthStore } from '../../lib/auth-store'
 import { useState, useEffect } from 'react'
 import { getWallet } from '../../lib/credits'
@@ -13,9 +13,8 @@ const navItems = [
   { label: 'Startup Intelligence', href: '/startup-intelligence', icon: Rocket },
   { label: 'Founder Intelligence', href: '/founder-intelligence', icon: Star },
   { label: 'Social Intelligence', href: '/social-intelligence', icon: MessageCircle },
+  { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { label: 'AI Client Finder', href: '/ai-client-finder', icon: Users },
-  { label: 'Reports', href: '/history', icon: FileText },
-  { label: 'Saved Reports', href: '/saved-reports', icon: Bookmark },
   { label: 'Pricing', href: '/buy-credits', icon: Zap },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
@@ -41,7 +40,6 @@ export default function Sidebar() {
         const wallet = await getWallet(user.id)
         setCredits(wallet.credits)
       } catch {
-        // Silently handle auth/session errors - credit display will show 0
         setCredits(0)
       }
     }

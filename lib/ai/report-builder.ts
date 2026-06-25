@@ -34,6 +34,10 @@ export function buildReport(params: {
 
   // Normalize scores - AI may return them as an object or array
   const scores = normalizeScores(params.aiResponse.scores)
+  const opportunities = ensureArray(
+    params.aiResponse.opportunities,
+    ensureArray(params.aiResponse.growthOpportunities)
+  )
 
   const now = new Date().toISOString()
 
@@ -46,11 +50,11 @@ export function buildReport(params: {
     input: params.input,
     scores,
     overallScore: params.aiResponse.overallScore ?? calculateOverallScore(scores),
-    verdict: params.aiResponse.verdict || 'Analysis complete.',
+    verdict: params.aiResponse.verdict || params.aiResponse.finalVerdict || 'Analysis complete.',
     summary: params.aiResponse.summary || generateDefaultSummary(scores, feature),
     strengths: ensureArray(params.aiResponse.strengths),
     weaknesses: ensureArray(params.aiResponse.weaknesses),
-    opportunities: ensureArray(params.aiResponse.opportunities),
+    opportunities,
     threats: ensureArray(params.aiResponse.threats),
     recommendations: ensureArray(params.aiResponse.recommendations),
     insights: ensureArray(params.aiResponse.insights, [

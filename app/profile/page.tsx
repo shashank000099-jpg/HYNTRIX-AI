@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useAuthStore } from '../../lib/auth-store'
 import { useCreditsStore } from '../../lib/credits-store'
 import { supabaseClient } from '../../lib/supabase/client'
-import { User, Mail, Award, Zap, Shield, Save, TrendingUp, BarChart3, Bookmark, CreditCard } from 'lucide-react'
+import { User, Mail, Award, Zap, Shield, Save, CreditCard } from 'lucide-react'
 import Link from 'next/link'
 
 export default function ProfilePage() {
@@ -15,16 +15,11 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false)
   const [name, setName] = useState(user?.name || '')
   const [error, setError] = useState<string | null>(null)
-  const [reportCount, setReportCount] = useState(0)
-  const [historyCount, setHistoryCount] = useState(0)
 
   // Live credits - auto updates when credits change
   useEffect(() => {
     if (user?.id) {
       fetchBalance(user.id)
-      // Fetch report counts
-      supabaseClient?.from('saved_reports').select('*', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => { if (count) setReportCount(count) })
-      supabaseClient?.from('history').select('*', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => { if (count) setHistoryCount(count) })
     }
   }, [user?.id, fetchBalance])
 
@@ -57,8 +52,6 @@ export default function ProfilePage() {
 
   const statCards = [
     { label: 'Credits', value: balance, icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-500/10', link: '/buy-credits' },
-    { label: 'Reports Generated', value: historyCount, icon: BarChart3, color: 'text-blue-400', bg: 'bg-blue-500/10', link: '/history' },
-    { label: 'Saved Reports', value: reportCount, icon: Bookmark, color: 'text-green-400', bg: 'bg-green-500/10', link: '/saved-reports' },
     { label: 'Level', value: user?.level || 1, icon: Award, color: 'text-purple-400', bg: 'bg-purple-500/10', link: '/founder-hub' },
   ]
 
@@ -71,7 +64,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Live Stats */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-2">
         {statCards.map((stat) => {
           const Icon = stat.icon
           const content = (

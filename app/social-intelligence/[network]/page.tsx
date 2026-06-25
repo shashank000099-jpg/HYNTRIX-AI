@@ -3,6 +3,7 @@ import { socialFeatures } from '../../../lib/features'
 import { getFeatureByKey } from '../../../lib/features/registry'
 import FeatureWorkspace from '../../../components/FeatureWorkspace'
 import ComingSoonFeature from '../../../components/ComingSoonFeature'
+import FeatureEvaluationContext from '../../../components/FeatureEvaluationContext'
 import type { Metadata } from 'next'
 import { TOOLS_SEO } from '../../../lib/config'
 import { generateMetadata as seoMetadata } from '../../../lib/seo'
@@ -35,19 +36,21 @@ export default async function SocialFeaturePage({ params }: Props) {
 
   if (isComingSoon) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-12">
         <ComingSoonFeature
           title={feature.title}
           description={feature.description}
           platform={feature.platform || 'linkedin'}
         />
+        <FeatureEvaluationContext category="social" featureKey={resolved.network} featureTitle={feature.title} />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12">
       <FeatureWorkspace title={feature.title} description={feature.description} inputLabel={feature.inputLabel} featureKey={resolved.network} />
+      <FeatureEvaluationContext category="social" featureKey={resolved.network} featureTitle={feature.title} />
     </div>
   )
 }

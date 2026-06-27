@@ -15,6 +15,8 @@ const forgotPasswordSchema = z.object({
 
 type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>
 
+const AUTH_UNAVAILABLE = 'Authentication is temporarily unavailable. Please try again later.'
+
 export default function ForgotPasswordPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -26,7 +28,7 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordForm) => {
     if (!supabaseClient) {
-      setError('Supabase not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+      setError(AUTH_UNAVAILABLE)
       return
     }
 
@@ -40,14 +42,14 @@ export default function ForgotPasswordPage() {
 
       if (resetError) {
         console.error('Password reset error:', { message: resetError.message, code: resetError.code, status: resetError.status })
-        setError(`Failed to send reset link: ${resetError.message}`)
+        setError('Could not send the reset link. Please try again.')
         return
       }
 
       setSuccess(true)
     } catch (err: any) {
       console.error('Password reset catch error:', err)
-      setError(`Password reset error: ${err?.message || 'Unknown error'}`)
+      setError('Could not send the reset link. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -86,11 +88,11 @@ export default function ForgotPasswordPage() {
 
         <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-lg p-8">
           <h2 className="text-2xl font-bold text-white mb-2">Forgot Password?</h2>
-          <p className="text-gray-400 text-sm mb-8">Enter your email and we'll send you a link to reset it</p>
+          <p className="text-gray-400 text-sm mb-8">Enter your email and we&apos;ll send you a link to reset it</p>
 
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-              <p className="text-red-400 text-sm font-mono break-all">{error}</p>
+              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 
@@ -114,7 +116,7 @@ export default function ForgotPasswordPage() {
               </Link>
             </div>
             <div className="text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 font-medium">
                 Sign Up
               </Link>

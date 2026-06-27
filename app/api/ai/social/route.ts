@@ -14,6 +14,10 @@ import { buildReport } from '../../../../lib/ai/report-builder'
 import { getSocialProvider, extractSocialIdentifier, getSocialPromptContext } from '../../../../lib/ai/social-providers'
 import type { AIGenerateRequest, AIGenerateResponse, AIReport, SocialPlatform } from '../../../../lib/ai/types'
 
+const FEATURE_UNAVAILABLE_ERROR = 'This feature is temporarily unavailable. Please try again later.'
+const AI_GENERATION_ERROR = 'AI analysis could not be completed right now. Your credits were not deducted.'
+const SOCIAL_FETCH_ERROR = 'We could not fetch profile data. Please verify the URL or handle and try again.'
+
 export async function POST(request: Request) {
   // ==========================================
   // STEP 1: Validate environment
@@ -22,8 +26,9 @@ export async function POST(request: Request) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Social API] Supabase configuration missing')
     return NextResponse.json(
-      { success: false, error: 'Supabase not configured' },
+      { success: false, error: FEATURE_UNAVAILABLE_ERROR },
       { status: 500 }
     )
   }
@@ -156,7 +161,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: err?.message || `Unable to analyze this ${platform} profile. Please verify the URL or handle and try again.`,
+          error: SOCIAL_FETCH_ERROR,
           platform,
           socialIdentifier,
         },
@@ -176,7 +181,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: `Could not extract profile data from this ${platform} profile. The account may be private or restricted.`,
+          error: SOCIAL_FETCH_ERROR,
           platform,
           socialIdentifier,
         },
@@ -235,7 +240,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: `AI analysis failed: ${err?.message || 'Unknown error'}. Your credits were NOT deducted.`,
+        error: AI_GENERATION_ERROR,
       },
       { status: 502 }
     )

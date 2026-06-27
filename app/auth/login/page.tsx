@@ -17,6 +17,8 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+const AUTH_UNAVAILABLE = 'Authentication is temporarily unavailable. Please try again later.'
+
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,7 +42,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     if (!supabaseClient) {
-      setError('Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+      setError(AUTH_UNAVAILABLE)
       return
     }
 
@@ -60,7 +62,7 @@ export default function LoginPage() {
         } else if (signInError.message.includes('Email not confirmed')) {
           setError('Please verify your email before signing in. Check your inbox for the verification link.')
         } else {
-          setError(`Login failed: ${signInError.message}`)
+          setError('Could not sign in. Please try again.')
         }
         return
       }
@@ -81,7 +83,7 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Login error:', err)
-      setError(`Connection error: ${err?.message || 'Please try again later.'}`)
+      setError('Could not sign in. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -89,7 +91,7 @@ export default function LoginPage() {
 
   const handleGoogle = async () => {
     if (!supabaseClient) {
-      setError('Supabase not configured. Check environment variables.')
+      setError(AUTH_UNAVAILABLE)
       return
     }
 
@@ -105,11 +107,12 @@ export default function LoginPage() {
       })
 
       if (error) {
-        setError(`Google sign in failed: ${error.message}`)
+        console.error('Google sign in error:', { message: error.message, code: error.code, status: error.status })
+        setError('Google sign in could not be started. Please try again.')
       }
     } catch (err: any) {
       console.error('Google sign in error:', err)
-      setError(`Google sign in error: ${err?.message || 'Please try again.'}`)
+      setError('Google sign in could not be started. Please try again.')
     } finally {
       setGoogleLoading(false)
     }
@@ -180,7 +183,7 @@ export default function LoginPage() {
               </Link>
             </div>
             <div className="text-gray-400">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 font-medium">
                 Sign Up
               </Link>

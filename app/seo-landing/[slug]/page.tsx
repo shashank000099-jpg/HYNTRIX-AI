@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return seoMetadata({
     title: page.title,
     description: page.description,
-    path: `/${slug}`,
+    path: `/seo-landing/${slug}`,
     keywords: page.keywords,
     ogType: 'website',
   })
@@ -57,7 +57,7 @@ export default async function SEOLandingPage({ params }: Props) {
   const organizationSchema = getOrganizationSchema()
   const breadcrumbSchema = getBreadcrumbSchema([
     { name: 'Home', url: '/' },
-    { name: page.h1, url: `/${slug}` },
+    { name: page.h1, url: `/seo-landing/${slug}` },
   ])
 
   return (

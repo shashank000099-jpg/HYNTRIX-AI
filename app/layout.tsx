@@ -124,8 +124,75 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     },
   };
 
+  const softwareJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: SITE_NAME,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    url: SITE_URL,
+    description: SITE_CONFIG.description,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'INR',
+      price: '22',
+      availability: 'https://schema.org/InStock',
+    },
+  };
+
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: SITE_NAME,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
+    description: SITE_CONFIG.description,
+    image: `${SITE_URL}${SITE_CONFIG.defaultOgImage}`,
+    offers: {
+      '@type': 'AggregateOffer',
+      priceCurrency: 'INR',
+      lowPrice: '22',
+      highPrice: '199',
+      offerCount: '3',
+      availability: 'https://schema.org/InStock',
+    },
+  };
+
+  const faqJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'What is HyntrixAI?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'HyntrixAI is an AI-powered evaluation and opportunity discovery platform for founders, creators, startup ideas, and business growth.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'How do HyntrixAI credits work?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Users purchase credits and spend them on AI analysis tools. Each core analysis uses a fixed credit cost shown before generation.',
+        },
+      },
+      {
+        '@type': 'Question',
+        name: 'Are scores or recognition guaranteed?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'No. HyntrixAI evaluations are informational. Recognition, review, rankings, programs, rewards, investments, and partnerships are not guaranteed.',
+        },
+      },
+    ],
+  };
+
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         <meta name="theme-color" content={SITE_CONFIG.themeColor} />
         <meta name="background-color" content={SITE_CONFIG.backgroundColor} />
@@ -137,6 +204,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
         />
       </head>
       <body className={`${inter.variable} font-sans bg-background text-white`}>

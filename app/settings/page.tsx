@@ -20,7 +20,6 @@ export default function SettingsPage() {
     if (!user) { router.push('/auth/login'); return }
     loadSettings()
   }, [user, router])
-
   async function loadSettings() {
     if (!supabaseClient || !user) return
     const { data } = await supabaseClient

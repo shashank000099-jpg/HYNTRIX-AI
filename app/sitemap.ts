@@ -46,48 +46,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${SITE_URL}/dashboard`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.6,
-    },
-    {
-      url: `${SITE_URL}/buy-credits`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/auth/login`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${SITE_URL}/auth/signup`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${SITE_URL}/founder-hub`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
-    {
-      url: `${SITE_URL}/saved-reports`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.5,
-    },
-    {
-      url: `${SITE_URL}/history`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.5,
-    },
-    {
       url: `${SITE_URL}/board-room`,
       lastModified: new Date(),
       changeFrequency: 'weekly',
@@ -105,7 +63,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   // SEO landing pages
   const seoLandingPages: MetadataRoute.Sitemap = SEO_LANDING_PAGES.map((page) => ({
-    url: `${SITE_URL}/${page.slug}`,
+    url: `${SITE_URL}/seo-landing/${page.slug}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.7,

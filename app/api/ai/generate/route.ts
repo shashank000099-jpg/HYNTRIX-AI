@@ -13,6 +13,10 @@ import { generateResponse, parseAIJSONResponse, isGeminiConfigured, isProviderCo
 import { buildReport } from '../../../../lib/ai/report-builder'
 import type { AIGenerateRequest, AIGenerateResponse, AIReport } from '../../../../lib/ai/types'
 
+const FEATURE_UNAVAILABLE_ERROR = 'This feature is temporarily unavailable. Please try again later.'
+const AI_GENERATION_ERROR = 'AI analysis could not be completed right now. Your credits were not deducted.'
+const SOCIAL_FETCH_ERROR = 'We could not fetch profile data. Please verify the URL or handle and try again.'
+
 // ============================================
 // CREDIT SAFETY: Validate → Generate → Save → Deduct
 // Credits are NEVER deducted before successful generation
@@ -26,18 +30,20 @@ export async function POST(request: Request) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[Generate] Supabase configuration missing')
     return NextResponse.json(
-      { success: false, error: 'Supabase not configured' },
+      { success: false, error: FEATURE_UNAVAILABLE_ERROR },
       { status: 500 }
     )
   }
 
   const hasAI = isGeminiConfigured() || isProviderConfigured('claude') || isProviderConfigured('openai')
   if (!hasAI) {
+    console.error('[Generate] AI provider configuration missing')
     return NextResponse.json(
       {
         success: false,
-        error: 'AI provider not configured. Set GEMINI_API_KEY in your .env.local file.',
+        error: FEATURE_UNAVAILABLE_ERROR,
       },
       { status: 500 }
     )
@@ -169,14 +175,15 @@ export async function POST(request: Request) {
             console.error(`[API] ${socialPlatform} fetch failed: ${err?.message}`)
             return NextResponse.json({
               success: false,
-              error: err?.message || `Unable to fetch ${feature.title} data. Please verify the username and try again.`,
+              error: SOCIAL_FETCH_ERROR,
               platform: socialPlatform,
             }, { status: 400 })
           }
         } else {
+          console.error(`[API] ${socialPlatform} external data provider is not configured`)
           return NextResponse.json({
             success: false,
-            error: `Apify API key not configured. Set APIFY_API_KEY to use ${feature.title}.`,
+            error: FEATURE_UNAVAILABLE_ERROR,
           }, { status: 500 })
         }
       } else {
@@ -212,7 +219,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: `AI generation failed: ${err?.message || 'Unknown error'}. Your credits were NOT deducted.`,
+        error: AI_GENERATION_ERROR,
       },
       { status: 502 }
     )

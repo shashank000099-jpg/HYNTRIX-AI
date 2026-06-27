@@ -8,8 +8,27 @@ export const config = {
   ],
 }
 
-const publicRoutes = ['/', '/auth/login', '/auth/signup', '/auth/forgot-password', '/auth/callback', '/auth/verify']
-const publicPrefixes = ['/api/razorpay']
+const publicRoutes = [
+  '/',
+  '/robots.txt',
+  '/sitemap.xml',
+  '/auth/login',
+  '/auth/signup',
+  '/auth/forgot-password',
+  '/auth/callback',
+  '/auth/verify',
+]
+const publicPrefixes = [
+  '/api/razorpay',
+  '/startup-intelligence',
+  '/founder-intelligence',
+  '/social-intelligence',
+  '/opportunity-hub',
+  '/seo-landing',
+  '/board-room',
+  '/ai-client-finder',
+  '/leaderboard',
+]
 const authOnlyRoutes = ['/auth/login', '/auth/signup']
 
 export async function middleware(req: NextRequest) {

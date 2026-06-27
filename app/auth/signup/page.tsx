@@ -21,6 +21,27 @@ const signupSchema = z.object({
 
 type SignupForm = z.infer<typeof signupSchema>
 
+const AUTH_UNAVAILABLE = 'Authentication is temporarily unavailable. Please try again later.'
+const EXISTING_ACCOUNT = 'An account with this email already exists. Please sign in instead.'
+
+function getSignupErrorMessage(error: { message?: string } | null | undefined) {
+  const message = error?.message?.toLowerCase() || ''
+
+  if (message.includes('already') || message.includes('registered') || message.includes('exists')) {
+    return EXISTING_ACCOUNT
+  }
+
+  if (message.includes('password')) {
+    return 'Please use a stronger password.'
+  }
+
+  if (message.includes('rate') || message.includes('too many')) {
+    return 'Too many attempts. Please wait a moment and try again.'
+  }
+
+  return 'Could not create your account. Please try again.'
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const [error, setError] = useState('')
@@ -34,7 +55,7 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupForm) => {
     if (!supabaseClient) {
-      setError('Supabase not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+      setError(AUTH_UNAVAILABLE)
       return
     }
 
@@ -52,7 +73,12 @@ export default function SignupPage() {
 
       if (signUpError) {
         console.error('Signup error:', { message: signUpError.message, code: signUpError.code, status: signUpError.status })
-        setError(`Signup failed: ${signUpError.message}`)
+        setError(getSignupErrorMessage(signUpError))
+        return
+      }
+
+      if (authData.user && Array.isArray(authData.user.identities) && authData.user.identities.length === 0) {
+        setError(EXISTING_ACCOUNT)
         return
       }
 
@@ -64,7 +90,7 @@ export default function SignupPage() {
       }
     } catch (err: any) {
       console.error('Signup catch error:', err)
-      setError(`Signup error: ${err?.message || 'Unknown error'}`)
+      setError('Could not create your account. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -72,7 +98,7 @@ export default function SignupPage() {
 
   const handleGoogle = async () => {
     if (!supabaseClient) {
-      setError('Supabase not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables.')
+      setError(AUTH_UNAVAILABLE)
       return
     }
 
@@ -89,11 +115,11 @@ export default function SignupPage() {
 
       if (error) {
         console.error('Google sign up error:', { message: error.message, code: error.code, status: error.status })
-        setError(`Google sign up failed: ${error.message}`)
+        setError('Google sign up could not be started. Please try again.')
       }
     } catch (err: any) {
       console.error('Google sign up catch error:', err)
-      setError(`Google sign up error: ${err?.message || 'Unknown error'}`)
+      setError('Google sign up could not be started. Please try again.')
     } finally {
       setGoogleLoading(false)
     }
@@ -134,7 +160,7 @@ export default function SignupPage() {
 
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-              <p className="text-red-400 text-sm font-mono break-all">{error}</p>
+              <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
 

@@ -9,6 +9,9 @@ import { createServerClient } from '@supabase/ssr'
 import { clientFinderEngine, clientFinderToAIReport, CLIENT_FINDER_CONFIG } from '../../../../lib/ai/client-finder-engine'
 import type { ClientFinderSearchRequest, AIReport } from '../../../../lib/ai/types'
 
+const FEATURE_UNAVAILABLE_ERROR = 'This feature is temporarily unavailable. Please try again later.'
+const CLIENT_FINDER_ERROR = 'Client search could not be completed right now. Your credits were not deducted.'
+
 export async function POST(request: Request) {
   // ==========================================
   // STEP 1: Validate environment
@@ -17,8 +20,9 @@ export async function POST(request: Request) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('[ClientFinder] Supabase configuration missing')
     return NextResponse.json(
-      { success: false, error: 'Supabase not configured' },
+      { success: false, error: FEATURE_UNAVAILABLE_ERROR },
       { status: 500 }
     )
   }
@@ -116,7 +120,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: `Client finder search failed: ${err?.message || 'Unknown error'}. Your credits were NOT deducted.`,
+        error: CLIENT_FINDER_ERROR,
       },
       { status: 502 }
     )

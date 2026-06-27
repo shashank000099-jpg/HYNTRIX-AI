@@ -48,6 +48,9 @@ export const metadata: Metadata = {
     site: SITE_CONFIG.twitterHandle,
     creator: SITE_CONFIG.twitterHandle,
   },
+  verification: {
+    google: "57AKPqN6-w8D7MbVKtE9ZuGbZmAdbfs8lsjcm3f5Oxk",
+  },
   robots: {
     index: true,
     follow: true,
